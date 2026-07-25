@@ -280,8 +280,8 @@ function renderProductivityChart(){
     type:'bar',
     data:{ labels, datasets:[{ label:'Tasks completed', data, borderRadius:8, backgroundColor:'rgba(124,108,246,.55)', hoverBackgroundColor:'rgb(124,108,246)' }]},
     options:{ plugins:{legend:{display:false}}, scales:{
-      x:{ grid:{display:false}, ticks:{color:style.getPropertyValue('--text')} },
-      y:{ beginAtZero:true, ticks:{stepSize:1, color:style.getPropertyValue('--text')}, grid:{color:'rgba(128,128,128,.12)'} }
+      x:{ grid:{display:false}, ticks:{color:style.getPropertyValue('--text-faint')} },
+      y:{ beginAtZero:true, ticks:{stepSize:1, color:style.getPropertyValue('--text-faint')}, grid:{color:'rgba(128,128,128,.12)'} }
     }}
   });
 }
