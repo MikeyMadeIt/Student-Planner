@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Settings · Student Planner</title>
+<meta name="theme-color" content="#0a0d16">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link href="css/style.css" rel="stylesheet">
+</head>
+<body data-theme="dark" data-accent="violet">
+<div class="app-shell">
+  <nav class="sidebar" id="sidebar"></nav>
+  <main class="main-content">
+    <div class="mobile-topbar"><div class="brand mb-0 p-0"><span class="dot"><i class="bi bi-mortarboard"></i></span> Planner</div></div>
+    <div class="topbar"><div><h1 class="page-title">Settings</h1><p class="page-sub">Personalize your planner</p></div></div>
+
+    <div class="row g-3">
+      <div class="col-lg-6">
+        <div class="glass card-pad fade-in mb-3">
+          <div class="section-title"><i class="bi bi-person-fill"></i>Student Profile</div>
+          <div class="row g-2">
+            <div class="col-md-6"><label>Name</label><input class="form-control" id="sName"></div>
+            <div class="col-md-6"><label>Student Number</label><input class="form-control" id="sNumber"></div>
+            <div class="col-md-6"><label>Course</label><input class="form-control" id="sCourse"></div>
+            <div class="col-md-3"><label>Year Level</label><input class="form-control" id="sYear"></div>
+            <div class="col-md-3"><label>Section</label><input class="form-control" id="sSection"></div>
+            <div class="col-12"><label>School</label><input class="form-control" id="sSchool"></div>
+          </div>
+          <button class="btn btn-accent w-100 mt-3" onclick="saveProfile()">Save Profile</button>
+        </div>
+
+        <div class="glass card-pad fade-in mb-3">
+          <div class="section-title"><i class="bi bi-flag-fill"></i>Semester</div>
+          <div class="row g-2">
+            <div class="col-md-6"><label>Semester Name</label><input class="form-control" id="semName"></div>
+            <div class="col-md-6"><label>School Year</label><input class="form-control" id="semYear"></div>
+            <div class="col-md-4"><label>Start Date</label><input type="date" class="form-control" id="semStart"></div>
+            <div class="col-md-4"><label>End Date</label><input type="date" class="form-control" id="semEnd"></div>
+            <div class="col-md-4"><label>Finals Date</label><input type="date" class="form-control" id="semFinals"></div>
+            <div class="col-md-6"><label>Total Weeks</label><input type="number" class="form-control" id="semWeeks"></div>
+          </div>
+          <button class="btn btn-accent w-100 mt-3" onclick="saveSemesterSettings()">Save Semester</button>
+        </div>
+
+        <div class="glass card-pad fade-in">
+          <div class="section-title"><i class="bi bi-bell-fill"></i>Notifications</div>
+          <div id="notifToggles"></div>
+          <button class="btn btn-ghost w-100 mt-2" onclick="requestNotifPermission()"><i class="bi bi-bell me-1"></i>Enable Browser Notifications</button>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="glass card-pad fade-in mb-3">
+          <div class="section-title"><i class="bi bi-moon-stars-fill"></i>Theme</div>
+          <div class="row row-cols-3 g-2 mb-3">
+            <div class="col"><button class="btn-ghost btn w-100" id="theme_dark" onclick="chooseTheme('dark')"><i class="bi bi-moon-stars d-block mb-1"></i>Dark</button></div>
+            <div class="col"><button class="btn-ghost btn w-100" id="theme_light" onclick="chooseTheme('light')"><i class="bi bi-sun d-block mb-1"></i>Light</button></div>
+            <div class="col"><button class="btn-ghost btn w-100" id="theme_amoled" onclick="chooseTheme('amoled')"><i class="bi bi-circle-fill d-block mb-1"></i>AMOLED</button></div>
+          </div>
+          <div class="section-title"><i class="bi bi-palette2"></i>Accent Color</div>
+          <div class="d-flex gap-2" id="accentPicker"></div>
+        </div>
+
+        <div class="glass card-pad fade-in mb-3" id="data">
+          <div class="section-title"><i class="bi bi-hdd-fill"></i>Data</div>
+          <div class="d-flex flex-column gap-2">
+            <button class="btn btn-ghost" onclick="exportData()"><i class="bi bi-download me-1"></i>Export All Data (JSON)</button>
+            <label class="btn btn-ghost mb-0">
+              <i class="bi bi-upload me-1"></i>Import Data
+              <input type="file" accept=".json" id="importFile" hidden onchange="importData(this.files[0])">
+            </label>
+            <button class="btn btn-ghost" style="color:#fb7185" onclick="confirmReset()"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset All Data</button>
+          </div>
+        </div>
+
+        <div class="glass card-pad fade-in">
+          <div class="section-title"><i class="bi bi-info-circle-fill"></i>About</div>
+          <p class="text-soft" style="font-size:.85rem">Student Planner PWA — all your data stays on this device via localStorage. No account, no server, no tracking.</p>
+          <p class="text-faint" style="font-size:.75rem">Version 1.0.0</p>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<nav class="mobile-nav" id="mobileNav"></nav>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/app.js"></script>
+<script src="js/settings.js"></script>
+<script>
+  renderShell('settings');
+  applyTheme();
+  initSettings();
+</script>
+</body>
+</html>
