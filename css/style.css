@@ -246,14 +246,7 @@ label{ font-size:.8rem; font-weight:600; color:var(--text-soft); margin-bottom:4
 .list-row:hover{ background:var(--surface-2); border-color:var(--border); }
 .dot-color{ width:10px;height:10px;border-radius:50%; flex-shrink:0; box-shadow:0 0 0 3px rgba(255,255,255,.06); }
 
-.quote-box{ font-style:italic; font-size:.95rem; color:var(--text-soft); position:relative; padding-left:18px; }
-.quote-box::before{ content:'"'; position:absolute; left:-4px; top:-8px; font-size:2rem; color:rgba(var(--accent),.4); font-family:var(--font-display); }
 
-/* habit tracker mini grid */
-.habit-row{ display:flex; align-items:center; gap:10px; padding:8px 0; }
-.habit-dots{ display:flex; gap:4px; }
-.habit-dot{ width:15px;height:15px; border-radius:5px; background:var(--surface-2); border:1px solid var(--border); }
-.habit-dot.done{ background:linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent-2))); border-color:transparent; }
 
 /* pomodoro */
 .pomo-ring-wrap{ width:180px;height:180px; position:relative; margin:0 auto; }
@@ -291,6 +284,23 @@ label{ font-size:.8rem; font-weight:600; color:var(--text-soft); margin-bottom:4
 .cal-cell.other-month{ opacity:.35; }
 .cal-daynum{ font-weight:700; font-size:.78rem; font-family:var(--font-mono); }
 .cal-evt{ font-size:.62rem; padding:2px 5px; border-radius:6px; margin-top:3px; font-weight:600; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
+
+/* ---------- UNIVERSITY EVENTS MINI CALENDAR ---------- */
+.uc-grid{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:6px; min-width:0; }
+.uc-cell{
+  aspect-ratio:1/1; min-width:0; border-radius:12px; border:1px solid var(--border); background:var(--surface-2);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; cursor:pointer; transition:.2s;
+}
+.uc-cell:hover{ border-color:rgba(var(--accent),.4); }
+.uc-cell.today{ border-color:rgba(var(--accent),.6); box-shadow:0 0 0 1px rgba(var(--accent),.4); }
+.uc-cell.other-month{ opacity:.3; }
+.uc-daynum{ font-weight:700; font-size:.8rem; font-family:var(--font-mono); }
+.uc-dots{ display:flex; gap:2px; min-height:6px; }
+.uc-dot{ width:6px; height:6px; border-radius:50%; }
+.uc-week-row{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:8px; }
+.uc-week-cell{ border-radius:12px; border:1px solid var(--border); background:var(--surface-2); padding:8px 4px; text-align:center; cursor:pointer; transition:.2s; }
+.uc-week-cell:hover{ border-color:rgba(var(--accent),.4); }
+.uc-week-cell.today{ border-color:rgba(var(--accent),.6); box-shadow:0 0 0 1px rgba(var(--accent),.4); }
 
 /* ---------- TASKS ---------- */
 .task-row{ display:flex; align-items:flex-start; gap:12px; padding:14px; border-radius:16px; border:1px solid var(--border); background:var(--surface-2); margin-bottom:10px; transition:.25s var(--ease); cursor:grab; }

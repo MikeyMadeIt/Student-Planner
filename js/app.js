@@ -147,24 +147,6 @@ function fireConfetti(){
   }
 }
 
-/* ---------- QUOTES ---------- */
-const QUOTES = [
-  "Small steps every day beat big leaps once in a while.",
-  "Discipline is choosing what you want most over what you want now.",
-  "Your future is created by what you do today, not tomorrow.",
-  "Focus on progress, not perfection.",
-  "A little progress each day adds up to big results.",
-  "You don't have to be great to start, but you have to start to be great.",
-  "Study while others are sleeping; succeed while others are wishing.",
-  "The expert in anything was once a beginner.",
-  "Don't watch the clock; do what it does — keep going.",
-  "Success is the sum of small efforts repeated daily.",
-];
-function todaysQuote(){
-  const day = Math.floor(Date.now()/86400000);
-  return QUOTES[day % QUOTES.length];
-}
-
 /* ---------- HELPERS ---------- */
 function fmtTime(t){ // "14:30" -> "2:30 PM"
   if(!t) return '';
@@ -186,7 +168,7 @@ function fmtDuration(mins){
   return `${d}d ${h%24}h`;
 }
 const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-function todayKey(){ return new Date().toISOString().slice(0,10); }
+function todayKey(){ return ymdLocal(new Date()); }
 
 function debounce(fn, wait=250){
   let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), wait); };

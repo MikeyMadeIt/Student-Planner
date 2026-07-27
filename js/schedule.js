@@ -110,7 +110,7 @@ function nextOccurrenceMinutes(s){
     const day = new Date(now); day.setDate(now.getDate()+d);
     const dayName = DAY_NAMES[day.getDay()];
     if(s.days.includes(dayName)){
-      const mins = minutesUntil(day.toISOString().slice(0,10), s.start);
+      const mins = minutesUntil(ymdLocal(day), s.start);
       if(mins >= -5) return fmtDuration(mins) + ' away';
     }
   }

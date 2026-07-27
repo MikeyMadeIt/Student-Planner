@@ -12,9 +12,7 @@ function initDashboard(){
   renderGpaStat();
   renderWeekPreview();
   renderSemesterProgress();
-  renderHabits();
   renderProductivityChart();
-  document.getElementById('quoteText').textContent = todaysQuote();
   Pomo.init();
   setupQuickAddHandlers();
 
@@ -56,7 +54,7 @@ function renderNextClassCountdown(){
     const day = new Date(now); day.setDate(now.getDate()+d);
     const dayName = DAY_NAMES[day.getDay()];
     DB.getSubjects().filter(s=>!s.archived && s.days.includes(dayName)).forEach(s=>{
-      const dateStr = day.toISOString().slice(0,10);
+      const dateStr = ymdLocal(day);
       const mins = minutesUntil(dateStr, s.start);
       if(mins >= -5 && mins < bestMin){ bestMin = mins; best = s; }
     });
@@ -192,7 +190,7 @@ function renderWeekPreview(){
   let html='';
   for(let i=0;i<7;i++){
     const d = new Date(startOfWeek); d.setDate(startOfWeek.getDate()+i);
-    const dateStr = d.toISOString().slice(0,10);
+    const dateStr = ymdLocal(d);
     const isToday = dateStr===todayKey();
     const dayTasks = tasks.filter(t=>t.dueDate===dateStr).length;
     const daySubs = todaysSubjectsFor(d).length;
@@ -228,41 +226,6 @@ function renderSemesterProgress(){
   document.getElementById('semPct').textContent = pct+'% of semester complete';
 }
 
-/* ---------- HABITS ---------- */
-function renderHabits(){
-  const wrap = document.getElementById('habitList');
-  const habits = DB.getHabits();
-  const key = todayKey();
-  if(!habits.length){ wrap.innerHTML = emptyState('bi-lightning','No habits yet',''); return; }
-  wrap.innerHTML = habits.map(h=>{
-    const done = !!h.log[key];
-    const streak = computeStreak(h);
-    return `<div class="habit-row">
-      <div class="task-check ${done?'checked':''}" onclick="toggleHabit('${h.id}', this)"><i class="bi bi-check2" style="${done?'':'opacity:0'}"></i></div>
-      <i class="bi ${h.icon}" style="color:${h.color}"></i>
-      <div class="flex-grow-1" style="font-size:.82rem;font-weight:600">${h.name}</div>
-      <span class="text-faint" style="font-size:.72rem"><i class="bi bi-fire"></i> ${streak}d</span>
-    </div>`;
-  }).join('');
-}
-function computeStreak(h){
-  let streak=0; let d = new Date();
-  while(true){
-    const k = d.toISOString().slice(0,10);
-    if(h.log[k]){ streak++; d.setDate(d.getDate()-1); } else break;
-  }
-  return streak;
-}
-function toggleHabit(id, el){
-  const habits = DB.getHabits();
-  const h = habits.find(x=>x.id===id); if(!h) return;
-  const key = todayKey();
-  h.log[key] = !h.log[key];
-  DB.saveHabits(habits);
-  if(h.log[key]) fireConfetti();
-  renderHabits();
-}
-
 /* ---------- PRODUCTIVITY CHART ---------- */
 function renderProductivityChart(){
   const ctx = document.getElementById('prodChart');
@@ -271,7 +234,7 @@ function renderProductivityChart(){
   const labels=[], data=[];
   for(let i=6;i>=0;i--){
     const d = new Date(); d.setDate(d.getDate()-i);
-    const k = d.toISOString().slice(0,10);
+    const k = ymdLocal(d);
     labels.push(DAY_NAMES[d.getDay()]);
     data.push(tasks.filter(t=>t.status==='completed' && t.dueDate===k).length);
   }

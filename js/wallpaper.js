@@ -13,7 +13,7 @@ const WP_THEMES = {
   amoled:       { bg:['#000000','#000000'], text:'#ffffff', sub:'#8a8fa3', accent:'#7C6CF6', card:'rgba(255,255,255,.05)', line:'rgba(255,255,255,.12)' },
 };
 let wpTheme = 'dark';
-let wpToggleState = { day:true, classes:true, next:true, tasks:true, countdown:true, quote:true, calendar:true, name:true, semester:true, logo:false, qr:false };
+let wpToggleState = { name:true, semester:true, room:true, professor:true, logo:false, qr:false };
 
 function initWallpaper(){
   const themeGrid = document.getElementById('themePicker');
@@ -26,7 +26,7 @@ function initWallpaper(){
   }).join('');
 
   const toggles = document.getElementById('wpToggles');
-  const labels = { day:'Current Day', classes:"Today's Classes", next:'Next Class', tasks:'Tasks', countdown:'Countdown', quote:'Motivational Quote', calendar:'Minimal Calendar', name:'Student Name', semester:'Semester', logo:'School Logo Placeholder', qr:'QR Code Placeholder' };
+  const labels = { name:'Student Name', semester:'Semester', room:'Room / Building', professor:'Professor', logo:'School Logo Placeholder', qr:'QR Code Placeholder' };
   toggles.innerHTML = Object.entries(labels).map(([k,label])=>`
     <div class="form-check">
       <input class="form-check-input" type="checkbox" id="wpT_${k}" ${wpToggleState[k]?'checked':''} onchange="wpToggleState['${k}']=this.checked">
@@ -73,112 +73,79 @@ function generateWallpaper(){
   }
 
   const pad = W*0.08;
-  let y = H*0.09;
+  let y = H*0.07;
   const scale = W/1080;
 
-  // Student name / semester
+  // Student name / semester (fixed for the whole term, safe to keep permanent)
   if(wpToggleState.name){
-    ctx.fillStyle = t.sub; ctx.font = `${28*scale}px 'Segoe UI', sans-serif`;
+    ctx.fillStyle = t.sub; ctx.font = `${26*scale}px 'Segoe UI', sans-serif`;
     ctx.fillText((settings.name||'Student').toUpperCase(), pad, y);
-    y += 44*scale;
+    y += 40*scale;
   }
+  ctx.fillStyle = t.text; ctx.font = `700 ${46*scale}px 'Segoe UI', sans-serif`;
+  ctx.fillText('MY SCHEDULE', pad, y+8*scale);
+  y += 54*scale;
   if(wpToggleState.semester){
     ctx.fillStyle = t.sub; ctx.font = `${22*scale}px 'Segoe UI', sans-serif`;
     ctx.fillText(`${sem.name} · ${sem.schoolYear}`, pad, y);
-    y += 50*scale;
-  }
-
-  // Current day / date
-  if(wpToggleState.day){
-    const now = new Date();
-    ctx.fillStyle = t.text; ctx.font = `700 ${64*scale}px 'Segoe UI', sans-serif`;
-    ctx.fillText(now.toLocaleDateString([], {weekday:'long'}), pad, y+40*scale);
-    y += 90*scale;
-    ctx.fillStyle = t.sub; ctx.font = `${30*scale}px 'Segoe UI', sans-serif`;
-    ctx.fillText(now.toLocaleDateString([], {month:'long', day:'numeric', year:'numeric'}), pad, y);
-    y += 60*scale;
-  }
-
-  // Countdown to next class
-  const nextClass = findNextClassWp();
-  if(wpToggleState.countdown && nextClass){
-    roundRect(ctx, pad, y, W-2*pad, 130*scale, 24*scale, t.card, t.line);
-    ctx.fillStyle = t.accent; ctx.font = `700 ${26*scale}px 'Segoe UI', sans-serif`;
-    ctx.fillText('NEXT CLASS IN', pad+30*scale, y+45*scale);
-    ctx.fillStyle = t.text; ctx.font = `700 ${44*scale}px 'Segoe UI', sans-serif`;
-    ctx.fillText(fmtDuration(nextClass.mins), pad+30*scale, y+95*scale);
-    y += 160*scale;
-  }
-
-  // Next class detail
-  if(wpToggleState.next && nextClass){
-    ctx.fillStyle = t.sub; ctx.font = `${24*scale}px 'Segoe UI', sans-serif`;
-    ctx.fillText(`${nextClass.s.code} · ${fmtTime(nextClass.s.start)} · ${nextClass.s.room}`, pad, y);
-    y += 50*scale;
-  }
-
-  y += 20*scale;
-
-  // Today's classes
-  if(wpToggleState.classes){
-    const dayName = DAY_NAMES[new Date().getDay()];
-    const list = DB.getSubjects().filter(s=>!s.archived && s.days.includes(dayName)).sort((a,b)=>a.start.localeCompare(b.start));
-    ctx.fillStyle = t.text; ctx.font = `700 ${28*scale}px 'Segoe UI', sans-serif`;
-    ctx.fillText("TODAY'S CLASSES", pad, y); y += 20*scale;
-    list.slice(0,5).forEach(s=>{
-      y += 50*scale;
-      ctx.fillStyle = s.color; ctx.beginPath(); ctx.arc(pad+8*scale, y-8*scale, 7*scale, 0, 7); ctx.fill();
-      ctx.fillStyle = t.text; ctx.font = `600 ${26*scale}px 'Segoe UI', sans-serif`;
-      ctx.fillText(`${s.code}`, pad+28*scale, y);
-      ctx.fillStyle = t.sub; ctx.font = `${22*scale}px 'Segoe UI', sans-serif`;
-      ctx.fillText(`${fmtTime(s.start)} · ${s.room}`, pad+28*scale, y+28*scale);
-      y += 24*scale;
-    });
-    if(!list.length){ ctx.fillStyle = t.sub; ctx.font=`${24*scale}px 'Segoe UI', sans-serif`; ctx.fillText('No classes today 🎉', pad, y+40*scale); y+=40*scale; }
-    y += 30*scale;
-  }
-
-  // Tasks
-  if(wpToggleState.tasks){
-    const tasks = DB.getTasks().filter(t2=>t2.status!=='completed').sort((a,b)=>(a.dueDate+a.dueTime).localeCompare(b.dueDate+b.dueTime)).slice(0,4);
-    ctx.fillStyle = t.text; ctx.font = `700 ${28*scale}px 'Segoe UI', sans-serif`;
-    ctx.fillText('UPCOMING TASKS', pad, y); y+= 20*scale;
-    tasks.forEach(tk=>{
-      y += 46*scale;
-      ctx.fillStyle = t.accent; ctx.font = `${24*scale}px 'Segoe UI', sans-serif`; ctx.fillText('•', pad, y);
-      ctx.fillStyle = t.text; ctx.font = `600 ${24*scale}px 'Segoe UI', sans-serif`;
-      ctx.fillText(truncateText(ctx, tk.title, W-2*pad-40*scale), pad+24*scale, y);
-    });
-    if(!tasks.length){ ctx.fillStyle = t.sub; ctx.font=`${22*scale}px 'Segoe UI', sans-serif`; ctx.fillText('Nothing due — you\'re all caught up', pad, y+40*scale); y+=30*scale; }
     y += 40*scale;
   }
 
-  // Mini calendar (current week)
-  if(wpToggleState.calendar){
-    ctx.fillStyle = t.text; ctx.font = `700 ${28*scale}px 'Segoe UI', sans-serif`;
-    ctx.fillText('THIS WEEK', pad, y); y += 30*scale;
-    const now = new Date(); const start = new Date(now); start.setDate(now.getDate()-now.getDay());
-    const cellW = (W-2*pad)/7;
-    for(let i=0;i<7;i++){
-      const d = new Date(start); d.setDate(start.getDate()+i);
-      const isToday = d.toDateString()===now.toDateString();
-      const cx = pad + i*cellW + cellW/2;
-      if(isToday){ ctx.fillStyle = t.accent; ctx.beginPath(); ctx.arc(cx, y+18*scale, 26*scale, 0, 7); ctx.fill(); }
-      ctx.fillStyle = isToday ? '#fff' : t.sub; ctx.font = `${20*scale}px 'Segoe UI', sans-serif`; ctx.textAlign='center';
-      ctx.fillText(DAY_NAMES[d.getDay()][0], cx, y);
-      ctx.fillStyle = isToday ? '#fff' : t.text; ctx.font = `700 ${22*scale}px 'Segoe UI', sans-serif`;
-      ctx.fillText(d.getDate(), cx, y+26*scale);
-      ctx.textAlign='left';
-    }
-    y += 80*scale;
-  }
+  const reserveBottom = (wpToggleState.qr ? 110*scale : 20*scale);
+  const scheduleTop = y + 24*scale;
+  const availableHeight = H - reserveBottom - scheduleTop;
 
-  // Quote near bottom
-  if(wpToggleState.quote){
-    const quoteY = H - 140*scale;
-    ctx.fillStyle = t.accent; ctx.font = `${40*scale}px Georgia, serif`; ctx.fillText('"', pad, quoteY-10*scale);
-    ctx.fillStyle = t.sub; ctx.font = `italic ${22*scale}px 'Segoe UI', sans-serif`;
-    wrapText(ctx, todaysQuote(), pad+20*scale, quoteY, W-2*pad-20*scale, 30*scale);
+  // Build the week's schedule, grouped by day, skipping days with no classes
+  const weekOrder = [1,2,3,4,5,6,0]; // Mon..Sun
+  const subjects = DB.getSubjects().filter(s=>!s.archived);
+  const dayBlocks = weekOrder.map(dowIndex=>{
+    const dayName = DAY_NAMES[dowIndex];
+    const list = subjects.filter(s=>s.days.includes(dayName)).sort((a,b)=>a.start.localeCompare(b.start));
+    return { dayName, list };
+  }).filter(b=>b.list.length);
+
+  const totalRows = dayBlocks.reduce((sum,b)=> sum + 1 + b.list.length, 0) || 1;
+  // rows are weighted: a day header counts as 1.3, a class row as 1
+  const weightedRows = dayBlocks.reduce((sum,b)=> sum + 1.3 + b.list.length, 0) || 1;
+  let rowH = availableHeight / weightedRows;
+  rowH = Math.max(30*scale, Math.min(64*scale, rowH));
+
+  const dayFont = Math.max(18, Math.min(30, rowH*0.5)) ;
+  const classFont = Math.max(15, Math.min(24, rowH*0.4));
+  const subFont = Math.max(12, Math.min(19, rowH*0.32));
+
+  y = scheduleTop;
+  if(!dayBlocks.length){
+    ctx.fillStyle = t.sub; ctx.font = `${26*scale}px 'Segoe UI', sans-serif`;
+    ctx.fillText('No classes scheduled yet — add subjects in Schedule.', pad, y+40*scale);
+  } else {
+    dayBlocks.forEach(block=>{
+      // day header
+      ctx.fillStyle = t.accent; ctx.font = `700 ${dayFont}px 'Segoe UI', sans-serif`;
+      ctx.fillText(fullDayName(block.dayName).toUpperCase(), pad, y+dayFont*0.8);
+      y += rowH*1.3;
+      block.list.forEach(s=>{
+        // color dot
+        ctx.fillStyle = s.color; ctx.beginPath(); ctx.arc(pad+7*scale, y-classFont*0.3, 6*scale, 0, 7); ctx.fill();
+        // time
+        ctx.fillStyle = t.text; ctx.font = `600 ${classFont}px 'Segoe UI', sans-serif`;
+        const timeStr = `${fmtTime(s.start)}–${fmtTime(s.end)}`;
+        ctx.fillText(timeStr, pad+24*scale, y);
+        const timeW = ctx.measureText(timeStr).width;
+        // code / desc
+        ctx.fillStyle = t.text; ctx.font = `700 ${classFont}px 'Segoe UI', sans-serif`;
+        ctx.fillText(`  ${s.code}`, pad+24*scale+timeW, y);
+        // details line: room / professor
+        const details = [];
+        if(wpToggleState.room && (s.room || s.building)) details.push([s.room, s.building].filter(Boolean).join(', '));
+        if(wpToggleState.professor && s.professor) details.push(s.professor);
+        if(details.length){
+          ctx.fillStyle = t.sub; ctx.font = `${subFont}px 'Segoe UI', sans-serif`;
+          ctx.fillText(details.join(' · '), pad+24*scale, y+subFont*1.15);
+        }
+        y += rowH;
+      });
+    });
   }
 
   // logo / qr placeholders
@@ -198,19 +165,9 @@ function generateWallpaper(){
     ctx.fillText('QR CODE', W-pad-qs/2, H-pad-qs/2); ctx.textAlign='left';
   }
 }
-
-function findNextClassWp(){
-  const now = new Date();
-  for(let d=0; d<7; d++){
-    const day = new Date(now); day.setDate(now.getDate()+d);
-    const dayName = DAY_NAMES[day.getDay()];
-    const subs = DB.getSubjects().filter(s=>!s.archived && s.days.includes(dayName)).sort((a,b)=>a.start.localeCompare(b.start));
-    for(const s of subs){
-      const mins = minutesUntil(day.toISOString().slice(0,10), s.start);
-      if(mins >= -5) return { s, mins };
-    }
-  }
-  return null;
+function fullDayName(short){
+  const map = { Mon:'Monday', Tue:'Tuesday', Wed:'Wednesday', Thu:'Thursday', Fri:'Friday', Sat:'Saturday', Sun:'Sunday' };
+  return map[short] || short;
 }
 function roundRect(ctx,x,y,w,h,r,fill,stroke){
   ctx.beginPath(); ctx.moveTo(x+r,y);

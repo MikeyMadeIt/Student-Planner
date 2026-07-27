@@ -4,16 +4,27 @@
    lives in exactly one place.
    ============================================================ */
 
+/* Format a Date using LOCAL calendar fields (not UTC) as YYYY-MM-DD.
+   toISOString() converts to UTC first, which shifts the date by a day
+   for any timezone ahead of UTC (e.g. UTC+8) during local nighttime —
+   that was the cause of the calendar being off by one day. */
+function ymdLocal(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
 const DB_KEYS = {
   subjects: 'sp_subjects',
   tasks: 'sp_tasks',
   notes: 'sp_notes',
   attendance: 'sp_attendance',
   grades: 'sp_grades',
-  habits: 'sp_habits',
   settings: 'sp_settings',
   semester: 'sp_semester',
   pomodoro: 'sp_pomodoro_stats',
+  universityEvents: 'sp_university_events',
 };
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -37,9 +48,9 @@ const DEFAULT_SETTINGS = {
 
 const DEFAULT_SEMESTER = {
   name:'1st Semester', schoolYear:'2026-2027',
-  startDate: new Date().toISOString().slice(0,10),
-  endDate: new Date(Date.now()+ 1000*60*60*24*105).toISOString().slice(0,10), // ~15 weeks
-  finalsDate: new Date(Date.now()+ 1000*60*60*24*100).toISOString().slice(0,10),
+  startDate: ymdLocal(new Date()),
+  endDate: ymdLocal(new Date(Date.now()+ 1000*60*60*24*105)), // ~15 weeks
+  finalsDate: ymdLocal(new Date(Date.now()+ 1000*60*60*24*100)),
   totalWeeks:15,
 };
 
@@ -69,7 +80,7 @@ function seedIfEmpty(){
   writeKey(DB_KEYS.subjects, subjects);
 
   const today = new Date();
-  const inDays = (n)=>{ const d=new Date(today); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
+  const inDays = (n)=>{ const d=new Date(today); d.setDate(d.getDate()+n); return ymdLocal(d); };
 
   const tasks = [
     { id: uid(), title:'Problem Set 3', description:'Derivatives and limits, items 1-20', subjectId:subjects[1].id,
@@ -102,17 +113,10 @@ function seedIfEmpty(){
   const grades = subjects.map(s=>({ subjectId:s.id, quiz:[], activity:[], lab:[], project:[], midterm:null, finals:null }));
   writeKey(DB_KEYS.grades, grades);
 
-  const habits = [
-    { id: uid(), name:'Drink Water', icon:'bi-cup-straw', color:'#4F8CFF', log:{} },
-    { id: uid(), name:'Study 1 Hour', icon:'bi-book', color:'#7C6CF6', log:{} },
-    { id: uid(), name:'Exercise', icon:'bi-heart-pulse', color:'#FB7185', log:{} },
-    { id: uid(), name:'Sleep Early', icon:'bi-moon-stars', color:'#A78BFA', log:{} },
-  ];
-  writeKey(DB_KEYS.habits, habits);
-
   writeKey(DB_KEYS.settings, DEFAULT_SETTINGS);
   writeKey(DB_KEYS.semester, DEFAULT_SEMESTER);
   writeKey(DB_KEYS.pomodoro, { sessionsToday:0, totalFocusMinutes:0, lastDate:new Date().toDateString(), history:[] });
+  writeKey(DB_KEYS.universityEvents, []);
 
   localStorage.setItem('sp_seeded','1');
 }
@@ -147,9 +151,9 @@ const DB = {
   getGrades(){ return readKey(DB_KEYS.grades, []); },
   saveGrades(list){ return writeKey(DB_KEYS.grades, list); },
 
-  // habits
-  getHabits(){ return readKey(DB_KEYS.habits, []); },
-  saveHabits(list){ return writeKey(DB_KEYS.habits, list); },
+  // university calendar events
+  getUniversityEvents(){ return readKey(DB_KEYS.universityEvents, []); },
+  saveUniversityEvents(list){ return writeKey(DB_KEYS.universityEvents, list); },
 
   // settings
   getSettings(){ return readKey(DB_KEYS.settings, DEFAULT_SETTINGS); },

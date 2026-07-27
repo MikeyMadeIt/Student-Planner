@@ -18,7 +18,7 @@
     <div class="mobile-topbar"><div class="brand mb-0 p-0"><span class="dot"><i class="bi bi-mortarboard"></i></span> Planner</div></div>
     <div class="topbar">
       <div><h1 class="page-title">Calendar</h1><p class="page-sub" id="calSubtitle">This month</p></div>
-      <div class="d-flex gap-2">
+      <div class="d-flex gap-2 flex-wrap">
         <div class="btn-group">
           <button class="btn btn-ghost btn-sm active" data-mode="month" onclick="setCalMode('month')">Month</button>
           <button class="btn btn-ghost btn-sm" data-mode="week" onclick="setCalMode('week')">Week</button>
@@ -36,16 +36,26 @@
       <div id="calBody"></div>
     </div>
 
+    <!-- SEPARATE UNIVERSITY CALENDAR -->
     <div class="glass card-pad fade-in">
-      <div class="section-title"><i class="bi bi-list-check"></i>Legend</div>
-      <div class="d-flex gap-3 flex-wrap" style="font-size:.8rem">
-        <span><span class="dot-color d-inline-block" style="background:#7C6CF6"></span> Classes</span>
-        <span><span class="dot-color d-inline-block" style="background:#FBBF24"></span> Homework</span>
-        <span><span class="dot-color d-inline-block" style="background:#4F8CFF"></span> Project</span>
-        <span><span class="dot-color d-inline-block" style="background:#22D3EE"></span> Quiz</span>
-        <span><span class="dot-color d-inline-block" style="background:#FB7185"></span> Exam</span>
-        <span><span class="dot-color d-inline-block" style="background:#34D399"></span> Personal</span>
+      <div class="section-title"><i class="bi bi-bank2"></i>University Calendar</div>
+      <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div class="btn-group">
+          <button class="btn btn-ghost btn-sm active" data-ucmode="month" onclick="setUnivCalMode('month')">Month</button>
+          <button class="btn btn-ghost btn-sm" data-ucmode="week" onclick="setUnivCalMode('week')">Week</button>
+          <button class="btn btn-ghost btn-sm" data-ucmode="day" onclick="setUnivCalMode('day')">Day</button>
+        </div>
+        <button class="btn btn-accent btn-sm" onclick="openUnivEventModal()"><i class="bi bi-plus-lg me-1"></i>Add Event</button>
       </div>
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <button class="btn-icon" onclick="navUnivCal(-1)"><i class="bi bi-chevron-left"></i></button>
+        <h4 class="mb-0" id="univCalTitle"></h4>
+        <button class="btn-icon" onclick="navUnivCal(1)"><i class="bi bi-chevron-right"></i></button>
+      </div>
+      <div id="univCalBody" class="mb-3"></div>
+
+      <div class="section-title" id="univListTitle"><i class="bi bi-calendar-event"></i>Events This Month</div>
+      <div id="univEventList"></div>
     </div>
   </main>
 </div>
@@ -54,6 +64,13 @@
 <div class="modal fade" id="dayModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content card-pad" id="dayModalBody"></div>
+  </div>
+</div>
+
+<!-- University Event Modal -->
+<div class="modal fade" id="univEventModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content card-pad" id="univEventModalBody"></div>
   </div>
 </div>
 
