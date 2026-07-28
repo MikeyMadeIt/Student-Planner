@@ -7,9 +7,9 @@ let calDate = new Date();
 
 const CATEGORY_COLORS = { Homework:'#FBBF24', Project:'#4F8CFF', Quiz:'#22D3EE', Exam:'#FB7185', Personal:'#34D399', Organization:'#A78BFA' };
 
-function initCalendar(){ renderCalendar(); renderUnivCalendar(); }
+function initCalendar(){ renderCalendar(); renderTaskCalendar(); renderUnivCalendar(); }
 
-/* ---------- MAIN SCHEDULE CALENDAR (classes + tasks) ---------- */
+/* ---------- SCHEDULE CALENDAR (classes only) ---------- */
 function setCalMode(m){
   calMode = m;
   document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active', b.dataset.mode===m));
@@ -26,10 +26,7 @@ function eventsForDate(dateStr){
   const events = [];
   const dayName = DAY_NAMES[new Date(dateStr+'T00:00').getDay()];
   DB.getSubjects().filter(s=>!s.archived && s.days.includes(dayName)).forEach(s=>{
-    events.push({ title:`${s.code}`, color:s.color, type:'class', time:s.start });
-  });
-  DB.getTasks().filter(t=>t.dueDate===dateStr).forEach(t=>{
-    events.push({ title:t.title, color:CATEGORY_COLORS[t.category]||'#8a90a6', type:'task', time:t.dueTime, task:t });
+    events.push({ title:`${s.code}`, color:s.color, type:'class', time:s.start, subject:s });
   });
   return events.sort((a,b)=> (a.time||'').localeCompare(b.time||''));
 }
@@ -90,11 +87,11 @@ function dayHtml(){
   const dateStr = ymdLocal(calDate);
   document.getElementById('calTitle').textContent = calDate.toLocaleDateString([], {weekday:'long', month:'long', day:'numeric', year:'numeric'});
   const evts = eventsForDate(dateStr);
-  if(!evts.length) return `<div class="text-center py-5 text-faint">No events for this day</div>`;
+  if(!evts.length) return `<div class="text-center py-5 text-faint">No classes scheduled for this day</div>`;
   return evts.map(e=>`
     <div class="list-row">
       <span class="dot-color" style="background:${e.color}"></span>
-      <div class="flex-grow-1"><b>${escapeHtml(e.title)}</b><div class="text-faint" style="font-size:.78rem">${fmtTime(e.time)} · ${e.type==='class'?'Class':e.task.category}</div></div>
+      <div class="flex-grow-1"><b>${escapeHtml(e.title)}</b><div class="text-faint" style="font-size:.78rem">${fmtTime(e.time)} · ${escapeHtml(e.subject.room||'')}</div></div>
     </div>`).join('');
 }
 
@@ -105,12 +102,300 @@ function openDayModal(dateStr){
   body.innerHTML = `<h5 class="mb-3">${d.toLocaleDateString([], {weekday:'long', month:'long', day:'numeric'})}</h5>
   ${evts.length? evts.map(e=>`
     <div class="list-row"><span class="dot-color" style="background:${e.color}"></span>
-      <div class="flex-grow-1"><b>${escapeHtml(e.title)}</b><div class="text-faint" style="font-size:.78rem">${fmtTime(e.time)} · ${e.type==='class'?'Class':e.task.category}</div></div>
-    </div>`).join('') : `<div class="text-faint text-center py-3">Nothing scheduled</div>`}
-  <button class="btn btn-ghost w-100 mt-3" onclick="location.href='tasks.html'">Manage Tasks</button>`;
+      <div class="flex-grow-1"><b>${escapeHtml(e.title)}</b><div class="text-faint" style="font-size:.78rem">${fmtTime(e.time)} · ${escapeHtml(e.subject.room||'')}</div></div>
+    </div>`).join('') : `<div class="text-faint text-center py-3">No classes scheduled</div>`}
+  <button class="btn btn-ghost w-100 mt-3" onclick="location.href='schedule.html'">Manage Schedule</button>`;
   new bootstrap.Modal(document.getElementById('dayModal')).show();
 }
 function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+/* ---------- Add/Edit Schedule modal (writes to the same subjects store as Schedule Manager) ---------- */
+function openScheduleModal(id, presetDay){
+  const s = id ? DB.getSubject(id) : null;
+  const sem = DB.getSemester();
+  const days = s ? s.days : (presetDay ? [presetDay] : []);
+  const color = s ? s.color : DB.colors[0];
+  const body = document.getElementById('calSubjectModalBody');
+  body.innerHTML = `
+    <h5 class="mb-3"><i class="bi bi-calendar3 me-2"></i>${s?'Edit':'Add'} Schedule</h5>
+    <input type="hidden" id="csId" value="${s?s.id:''}">
+    <div class="row g-2">
+      <div class="col-md-4"><label>Subject Code</label><input class="form-control" id="csCode" value="${s?escapeHtml(s.code):''}" placeholder="CS101"></div>
+      <div class="col-md-8"><label>Subject Description</label><input class="form-control" id="csDesc" value="${s?escapeHtml(s.desc):''}" placeholder="Introduction to Computing"></div>
+      <div class="col-md-4"><label>Subject Type</label>
+        <select class="form-select" id="csType">${['Lecture','Laboratory','Seminar','Hybrid'].map(t=>`<option ${s&&s.type===t?'selected':''}>${t}</option>`).join('')}</select>
+      </div>
+      <div class="col-md-4"><label>Units</label><input type="number" step="0.5" class="form-control" id="csUnits" value="${s?s.units:3}"></div>
+      <div class="col-md-4"><label>Section</label><input class="form-control" id="csSection" value="${s?escapeHtml(s.section):''}" placeholder="BSCS-1A"></div>
+
+      <div class="col-12"><label>Days</label>
+        <div class="d-flex gap-2 flex-wrap">
+          ${DAY_NAMES.slice(1).concat(DAY_NAMES[0]).map(d=>`
+            <div class="form-check form-check-inline">
+              <input class="form-check-input cs-day-check" type="checkbox" value="${d}" id="csday_${d}" ${days.includes(d)?'checked':''}>
+              <label class="form-check-label" for="csday_${d}">${d}</label>
+            </div>`).join('')}
+        </div>
+      </div>
+
+      <div class="col-md-6"><label>Start Time</label><input type="time" class="form-control" id="csStart" value="${s?s.start:'08:00'}"></div>
+      <div class="col-md-6"><label>End Time</label><input type="time" class="form-control" id="csEnd" value="${s?s.end:'09:00'}"></div>
+
+      <div class="col-md-4"><label>Room Number</label><input class="form-control" id="csRoom" value="${s?escapeHtml(s.room):''}"></div>
+      <div class="col-md-8"><label>Building</label><input class="form-control" id="csBuilding" value="${s?escapeHtml(s.building):''}"></div>
+
+      <div class="col-md-6"><label>Professor</label><input class="form-control" id="csProf" value="${s?escapeHtml(s.professor):''}"></div>
+      <div class="col-md-6"><label>Email</label><input type="email" class="form-control" id="csEmail" value="${s?escapeHtml(s.email):''}"></div>
+
+      <div class="col-md-6"><label>Semester</label><input class="form-control" id="csSemester" value="${s?escapeHtml(s.semester):sem.name}"></div>
+      <div class="col-md-6"><label>School Year</label><input class="form-control" id="csYear" value="${s?escapeHtml(s.schoolYear):sem.schoolYear}"></div>
+
+      <div class="col-12"><label>Color Label</label>
+        <div class="d-flex gap-2 flex-wrap" id="csColorPicker">
+          ${DB.colors.map(c=>`<div onclick="selectScheduleColor('${c}')" data-cs-color="${c}" style="width:28px;height:28px;border-radius:8px;background:${c};cursor:pointer;box-shadow:${color===c?'0 0 0 3px rgba(255,255,255,.5)':'none'}"></div>`).join('')}
+        </div>
+        <input type="hidden" id="csColor" value="${color}">
+      </div>
+
+      <div class="col-12"><label>Notes</label><textarea class="form-control" id="csNotes" rows="2">${s?escapeHtml(s.notes||''):''}</textarea></div>
+    </div>
+    <div class="d-flex gap-2 mt-3">
+      <button class="btn btn-accent flex-grow-1" onclick="saveScheduleEntry()"><i class="bi bi-check2 me-1"></i>${s?'Update':'Save'} Schedule</button>
+      ${s?`<button class="btn btn-ghost" onclick="deleteScheduleEntry('${s.id}')"><i class="bi bi-trash3"></i></button>`:''}
+    </div>`;
+  new bootstrap.Modal(document.getElementById('calSubjectModal')).show();
+}
+function selectScheduleColor(c){
+  document.getElementById('csColor').value = c;
+  document.querySelectorAll('#csColorPicker div').forEach(d=> d.style.boxShadow = d.dataset.csColor===c ? '0 0 0 3px rgba(255,255,255,.5)' : 'none');
+}
+function saveScheduleEntry(){
+  const id = document.getElementById('csId').value;
+  const code = document.getElementById('csCode').value.trim();
+  if(!code){ Toast.show('Subject code is required','high','bi-exclamation-triangle'); return; }
+  const days = [...document.querySelectorAll('.cs-day-check:checked')].map(c=>c.value);
+  const data = {
+    code, desc: document.getElementById('csDesc').value.trim(),
+    type: document.getElementById('csType').value,
+    units: parseFloat(document.getElementById('csUnits').value)||0,
+    section: document.getElementById('csSection').value.trim(),
+    days, start: document.getElementById('csStart').value, end: document.getElementById('csEnd').value,
+    room: document.getElementById('csRoom').value.trim(), building: document.getElementById('csBuilding').value.trim(),
+    professor: document.getElementById('csProf').value.trim(), email: document.getElementById('csEmail').value.trim(),
+    color: document.getElementById('csColor').value, notes: document.getElementById('csNotes').value.trim(),
+    semester: document.getElementById('csSemester').value.trim(), schoolYear: document.getElementById('csYear').value.trim(),
+  };
+  const subjects = DB.getSubjects();
+  if(id){
+    const idx = subjects.findIndex(s=>s.id===id);
+    subjects[idx] = { ...subjects[idx], ...data };
+  } else {
+    subjects.push({ id: DB.uid(), archived:false, ...data });
+  }
+  DB.saveSubjects(subjects);
+  bootstrap.Modal.getInstance(document.getElementById('calSubjectModal')).hide();
+  Toast.show(id?'Schedule updated':'Schedule added — it now appears in Schedule Manager too');
+  renderCalendar();
+}
+function deleteScheduleEntry(id){
+  DB.saveSubjects(DB.getSubjects().filter(x=>x.id!==id));
+  const inst = bootstrap.Modal.getInstance(document.getElementById('calSubjectModal'));
+  if(inst) inst.hide();
+  Toast.show('Schedule deleted');
+  renderCalendar();
+}
+
+
+/* ============================================================
+   TASK CALENDAR (its own month/week/day view)
+   ============================================================ */
+let taskCalMode = 'month';
+let taskCalDate = new Date();
+let taskEditingId = null;
+
+function taskEventsForDate(dateStr){
+  return DB.getTasks().filter(t=>t.dueDate===dateStr).map(t=>({ ...t, color: CATEGORY_COLORS[t.category]||'#8a90a6' }));
+}
+
+function setTaskCalMode(m){
+  taskCalMode = m;
+  document.querySelectorAll('[data-tcmode]').forEach(b=>b.classList.toggle('active', b.dataset.tcmode===m));
+  renderTaskCalendar();
+}
+function navTaskCal(dir){
+  if(taskCalMode==='month') taskCalDate.setMonth(taskCalDate.getMonth()+dir);
+  else if(taskCalMode==='week') taskCalDate.setDate(taskCalDate.getDate()+dir*7);
+  else taskCalDate.setDate(taskCalDate.getDate()+dir);
+  renderTaskCalendar();
+}
+
+function renderTaskCalendar(){
+  const body = document.getElementById('taskCalBody');
+  if(!body) return;
+  body.innerHTML = taskCalMode==='month' ? taskMonthHtml() : taskCalMode==='week' ? taskWeekHtml() : taskDayHtml();
+  renderTaskCalListForPeriod();
+}
+
+function taskMonthHtml(){
+  const y = taskCalDate.getFullYear(), m = taskCalDate.getMonth();
+  document.getElementById('taskCalTitle').textContent = taskCalDate.toLocaleDateString([], {month:'long', year:'numeric'});
+  const first = new Date(y,m,1);
+  const startOffset = first.getDay();
+  const daysInMonth = new Date(y,m+1,0).getDate();
+  const daysInPrevMonth = new Date(y,m,0).getDate();
+
+  let html = `<div class="uc-grid mb-1">${DAY_NAMES.map(d=>`<div class="text-center text-faint" style="font-size:.68rem;font-weight:700">${d}</div>`).join('')}</div><div class="uc-grid">`;
+  const totalCells = Math.ceil((startOffset+daysInMonth)/7)*7;
+  for(let i=0;i<totalCells;i++){
+    let dayNum, monthOffset=0, other=false;
+    if(i < startOffset){ dayNum = daysInPrevMonth-startOffset+i+1; monthOffset=-1; other=true; }
+    else if(i >= startOffset+daysInMonth){ dayNum = i-startOffset-daysInMonth+1; monthOffset=1; other=true; }
+    else dayNum = i-startOffset+1;
+    const d = new Date(y, m+monthOffset, dayNum);
+    const dateStr = ymdLocal(d);
+    const isToday = dateStr === todayKey();
+    const evts = taskEventsForDate(dateStr);
+    html += `<div class="uc-cell ${isToday?'today':''} ${other?'other-month':''}" onclick="openTaskModal(null,'${dateStr}')" title="${evts.map(e=>e.title).join(', ')}">
+      <div class="uc-daynum">${dayNum}</div>
+      <div class="uc-dots">${evts.slice(0,4).map(e=>`<span class="uc-dot" style="background:${e.color}"></span>`).join('')}</div>
+    </div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+function taskWeekHtml(){
+  const start = new Date(taskCalDate); start.setDate(taskCalDate.getDate()-taskCalDate.getDay());
+  const end = new Date(start); end.setDate(start.getDate()+6);
+  document.getElementById('taskCalTitle').textContent = `${start.toLocaleDateString([], {month:'short', day:'numeric'})} – ${end.toLocaleDateString([], {month:'short', day:'numeric', year:'numeric'})}`;
+  let html = `<div class="uc-week-row">`;
+  for(let i=0;i<7;i++){
+    const d = new Date(start); d.setDate(start.getDate()+i);
+    const dateStr = ymdLocal(d);
+    const isToday = dateStr===todayKey();
+    const evts = taskEventsForDate(dateStr);
+    html += `<div class="uc-week-cell ${isToday?'today':''}" onclick="openTaskModal(null,'${dateStr}')" title="${evts.map(e=>e.title).join(', ')}">
+        <div class="text-faint" style="font-size:.64rem">${DAY_NAMES[d.getDay()]}</div>
+        <div class="fw-bold mono" style="font-size:.85rem">${d.getDate()}</div>
+        <div class="uc-dots justify-content-center">${evts.slice(0,4).map(e=>`<span class="uc-dot" style="background:${e.color}"></span>`).join('')}</div>
+      </div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+function taskDayHtml(){
+  const dateStr = ymdLocal(taskCalDate);
+  document.getElementById('taskCalTitle').textContent = taskCalDate.toLocaleDateString([], {weekday:'long', month:'long', day:'numeric', year:'numeric'});
+  const evts = taskEventsForDate(dateStr);
+  if(!evts.length) return `<div class="text-center py-3 text-faint" style="cursor:pointer" onclick="openTaskModal(null,'${dateStr}')"><i class="bi bi-plus-circle me-1"></i>No tasks — tap to add one for this day</div>`;
+  return `<div class="text-center text-faint" style="font-size:.78rem;cursor:pointer" onclick="openTaskModal(null,'${dateStr}')"><i class="bi bi-plus-circle me-1"></i>Tap to add another task for this day</div>`;
+}
+
+function getTaskPeriodDates(){
+  const dates = [];
+  if(taskCalMode==='month'){
+    const y = taskCalDate.getFullYear(), m = taskCalDate.getMonth();
+    const daysInMonth = new Date(y,m+1,0).getDate();
+    for(let d=1; d<=daysInMonth; d++) dates.push(ymdLocal(new Date(y,m,d)));
+  } else if(taskCalMode==='week'){
+    const start = new Date(taskCalDate); start.setDate(taskCalDate.getDate()-taskCalDate.getDay());
+    for(let i=0;i<7;i++){ const d=new Date(start); d.setDate(start.getDate()+i); dates.push(ymdLocal(d)); }
+  } else {
+    dates.push(ymdLocal(taskCalDate));
+  }
+  return dates;
+}
+function taskPeriodLabel(){
+  if(taskCalMode==='month') return 'Tasks This Month';
+  if(taskCalMode==='week') return 'Tasks This Week';
+  return 'Tasks Today';
+}
+function renderTaskCalListForPeriod(){
+  const titleEl = document.getElementById('taskListTitle');
+  if(titleEl) titleEl.innerHTML = `<i class="bi bi-list-task"></i>${taskPeriodLabel()}`;
+  const wrap = document.getElementById('taskCalList');
+  if(!wrap) return;
+  const periodDates = getTaskPeriodDates();
+  const tasks = DB.getTasks()
+    .filter(t=>periodDates.includes(t.dueDate))
+    .sort((a,b)=> (a.dueDate+a.dueTime).localeCompare(b.dueDate+b.dueTime));
+  if(!tasks.length){
+    wrap.innerHTML = `<div class="text-center py-4"><i class="bi bi-check2-square" style="font-size:1.6rem;color:var(--text-faint)"></i><div class="text-soft mt-2" style="font-size:.85rem;font-weight:600">No tasks in this period</div><div class="text-faint" style="font-size:.75rem">Tap "Add Task" or any date above to add one.</div></div>`;
+    return;
+  }
+  wrap.innerHTML = tasks.map(t=>`
+    <div class="list-row">
+      <span class="dot-color" style="background:${CATEGORY_COLORS[t.category]||'#8a90a6'}"></span>
+      <div class="flex-grow-1">
+        <div style="font-weight:700;font-size:.85rem;${t.status==='completed'?'text-decoration:line-through':''}">${escapeHtml(t.title)}</div>
+        <div class="text-faint" style="font-size:.75rem"><i class="bi bi-calendar3 me-1"></i>${new Date(t.dueDate+'T00:00').toLocaleDateString([], {month:'short', day:'numeric', year:'numeric'})} · ${fmtTime(t.dueTime)} · ${t.category}</div>
+      </div>
+      <button class="btn-icon" onclick="openTaskModal('${t.id}')"><i class="bi bi-pencil"></i></button>
+      <button class="btn-icon" onclick="deleteCalTask('${t.id}')"><i class="bi bi-trash3"></i></button>
+    </div>`).join('');
+}
+
+/* ---------- Add/Edit Task modal (writes to the same tasks store as Task Manager) ---------- */
+function openTaskModal(id, presetDate){
+  taskEditingId = id || null;
+  const t = id ? DB.getTasks().find(x=>x.id===id) : null;
+  const subs = DB.getSubjects();
+  const body = document.getElementById('calTaskModalBody');
+  body.innerHTML = `
+    <h5 class="mb-3"><i class="bi bi-check2-square me-2"></i>${t?'Edit':'Add'} Task</h5>
+    <input type="hidden" id="ctId" value="${t?t.id:''}">
+    <div class="row g-2">
+      <div class="col-12"><label>Title</label><input class="form-control" id="ctTitle" value="${t?escapeHtml(t.title):''}"></div>
+      <div class="col-12"><label>Description</label><textarea class="form-control" id="ctDesc" rows="2">${t?escapeHtml(t.description||''):''}</textarea></div>
+      <div class="col-md-4"><label>Subject</label><select class="form-select" id="ctSubject"><option value="">None</option>${subs.map(s=>`<option value="${s.id}" ${t&&t.subjectId===s.id?'selected':''}>${escapeHtml(s.code)}</option>`).join('')}</select></div>
+      <div class="col-md-4"><label>Category</label><select class="form-select" id="ctCategory">${['Homework','Project','Quiz','Exam','Personal','Organization'].map(c=>`<option ${t&&t.category===c?'selected':''}>${c}</option>`).join('')}</select></div>
+      <div class="col-md-4"><label>Priority</label><select class="form-select" id="ctPriority">${['low','medium','high'].map(p=>`<option value="${p}" ${t&&t.priority===p?'selected':(!t&&p==='medium'?'selected':'')}>${p[0].toUpperCase()+p.slice(1)}</option>`).join('')}</select></div>
+
+      <div class="col-md-4"><label>Due Date</label><input type="date" class="form-control" id="ctDueDate" value="${t?t.dueDate:(presetDate||todayKey())}"></div>
+      <div class="col-md-4"><label>Due Time</label><input type="time" class="form-control" id="ctDueTime" value="${t?t.dueTime:'23:59'}"></div>
+      <div class="col-md-4"><label>Status</label><select class="form-select" id="ctStatus">${['not-started','in-progress','completed'].map(s=>`<option value="${s}" ${t&&t.status===s?'selected':''}>${s.replace('-',' ')}</option>`).join('')}</select></div>
+    </div>
+    <div class="d-flex gap-2 mt-3">
+      <button class="btn btn-accent flex-grow-1" onclick="saveCalTask()"><i class="bi bi-check2 me-1"></i>${t?'Update':'Save'} Task</button>
+      ${t?`<button class="btn btn-ghost" onclick="deleteCalTask('${t.id}')"><i class="bi bi-trash3"></i></button>`:''}
+    </div>`;
+  new bootstrap.Modal(document.getElementById('calTaskModal')).show();
+}
+function saveCalTask(){
+  const title = document.getElementById('ctTitle').value.trim();
+  if(!title){ Toast.show('Please enter a title','high','bi-exclamation-triangle'); return; }
+  const data = {
+    title, description: document.getElementById('ctDesc').value.trim(),
+    subjectId: document.getElementById('ctSubject').value || null,
+    category: document.getElementById('ctCategory').value,
+    priority: document.getElementById('ctPriority').value,
+    dueDate: document.getElementById('ctDueDate').value,
+    dueTime: document.getElementById('ctDueTime').value,
+    status: document.getElementById('ctStatus').value,
+  };
+  if(data.status==='completed') data.progress = 100;
+
+  const id = document.getElementById('ctId').value;
+  const tasks = DB.getTasks();
+  if(id){
+    const idx = tasks.findIndex(t=>t.id===id);
+    tasks[idx] = { ...tasks[idx], ...data };
+  } else {
+    tasks.push({ id: DB.uid(), progress:0, repeat:'none', score:null, remarks:'', reminder:true, checklist:[], createdAt:Date.now(), ...data });
+  }
+  DB.saveTasks(tasks);
+  bootstrap.Modal.getInstance(document.getElementById('calTaskModal')).hide();
+  Toast.show(id?'Task updated':'Task added — it now appears in Tasks too');
+  renderTaskCalendar();
+}
+function deleteCalTask(id){
+  DB.saveTasks(DB.getTasks().filter(x=>x.id!==id));
+  const inst = bootstrap.Modal.getInstance(document.getElementById('calTaskModal'));
+  if(inst) inst.hide();
+  Toast.show('Task deleted');
+  renderTaskCalendar();
+}
 
 
 /* ============================================================
