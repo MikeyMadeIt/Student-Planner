@@ -25,6 +25,7 @@ const DB_KEYS = {
   semester: 'sp_semester',
   pomodoro: 'sp_pomodoro_stats',
   universityEvents: 'sp_university_events',
+  syllabusCourses: 'sp_syllabus_courses',
 };
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -118,6 +119,28 @@ function seedIfEmpty(){
   writeKey(DB_KEYS.pomodoro, { sessionsToday:0, totalFocusMinutes:0, lastDate:new Date().toDateString(), history:[] });
   writeKey(DB_KEYS.universityEvents, []);
 
+  const syllabusCourses = [
+    { id: uid(), courseTitle:'Introduction to Computing', courseCode:'CS101', creditUnits:3,
+      courseDescription:'Foundational concepts of computing, problem-solving, and computer systems for beginning CS students.',
+      instructor:'Dr. A. Reyes', semester:'1st Semester', academicYear:'2026-2027',
+      weeks:[
+        { id: uid(), learningType:'unordered',
+          learningOutcomes:['Explain the fundamental concepts of computing','Identify the major components of a computer system'],
+          topics:[{ id: uid(), title:'Introduction to Computers', subtopics:['Definition and history','Types of computers','Hardware vs software'] }] },
+        { id: uid(), learningType:'numbered',
+          learningOutcomes:['Differentiate between data and information','Describe how data is processed'],
+          topics:[{ id: uid(), title:'Data and Information Processing', subtopics:['The data processing cycle','Input-Process-Output model'] }] },
+        { id: uid(), learningType:'unordered',
+          learningOutcomes:['Explain the concept of algorithms','Trace simple algorithms using flowcharts'],
+          topics:[
+            { id: uid(), title:'Introduction to Algorithms', subtopics:['Definition','Characteristics','Applications'] },
+            { id: uid(), title:'Flowcharts', subtopics:['Symbols','Simple examples'] },
+          ] },
+      ],
+      createdAt:Date.now(), updatedAt:Date.now() },
+  ];
+  writeKey(DB_KEYS.syllabusCourses, syllabusCourses);
+
   localStorage.setItem('sp_seeded','1');
 }
 
@@ -154,6 +177,11 @@ const DB = {
   // university calendar events
   getUniversityEvents(){ return readKey(DB_KEYS.universityEvents, []); },
   saveUniversityEvents(list){ return writeKey(DB_KEYS.universityEvents, list); },
+
+  // syllabus
+  getSyllabusCourses(){ return readKey(DB_KEYS.syllabusCourses, []); },
+  saveSyllabusCourses(list){ return writeKey(DB_KEYS.syllabusCourses, list); },
+  getSyllabusCourse(id){ return this.getSyllabusCourses().find(c=>c.id===id); },
 
   // settings
   getSettings(){ return readKey(DB_KEYS.settings, DEFAULT_SETTINGS); },

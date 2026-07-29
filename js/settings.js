@@ -118,7 +118,7 @@ function importData(file){
 function confirmReset(){
   confirmAction({
     title:'Reset all data?',
-    message:'This permanently erases ALL your data — subjects, tasks, notes, grades, attendance, university calendar events — and restores the sample starter data. This cannot be undone.',
+    message:'This permanently erases ALL your data — subjects, tasks, notes, grades, attendance, university calendar events, course syllabi — and restores the sample starter data. This cannot be undone.',
     confirmLabel:'Erase Everything', danger:true, icon:'bi-exclamation-octagon-fill',
     onConfirm(){
       DB.resetAll();

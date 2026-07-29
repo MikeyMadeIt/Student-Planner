@@ -5,6 +5,7 @@
 const NAV_ITEMS = [
   { href:'index.html', icon:'bi-grid-1x2-fill', label:'Dashboard', key:'dashboard' },
   { href:'schedule.html', icon:'bi-calendar2-week-fill', label:'Schedule', key:'schedule' },
+  { href:'syllabus.html', icon:'bi-journal-bookmark-fill', label:'Syllabus', key:'syllabus' },
   { href:'calendar.html', icon:'bi-calendar3', label:'Calendar', key:'calendar' },
   { href:'tasks.html', icon:'bi-check2-square', label:'Tasks', key:'tasks' },
   { href:'grades.html', icon:'bi-mortarboard-fill', label:'Grades', key:'grades' },

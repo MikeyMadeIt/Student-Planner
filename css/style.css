@@ -179,6 +179,8 @@ a{ color:inherit; }
   background:var(--surface-2); border:1px solid var(--border); color:var(--text-soft); transition:.2s;
 }
 .btn-icon:hover{ color:rgb(var(--accent)); border-color:rgba(var(--accent),.4); }
+.btn-icon:disabled{ opacity:.35; cursor:not-allowed; }
+.btn-icon:disabled:hover{ color:var(--text-soft); border-color:var(--border); }
 
 .chip{
   display:inline-flex; align-items:center; gap:6px;
@@ -207,6 +209,16 @@ label{ font-size:.8rem; font-weight:600; color:var(--text-soft); margin-bottom:4
 .modal-header, .modal-footer{ border-color:var(--border); }
 .btn-close{ filter:invert(.6); }
 [data-theme="light"] .btn-close{ filter:none; }
+
+/* dropdown */
+.dropdown-menu{
+  background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-md);
+  box-shadow:var(--shadow); padding:6px; min-width:190px;
+}
+.dropdown-item{ color:var(--text-soft); border-radius:9px; font-size:.85rem; font-weight:600; padding:8px 10px; }
+.dropdown-item:hover, .dropdown-item:focus{ background:var(--surface-2); color:var(--text); }
+.dropdown-item.text-danger:hover{ background:rgba(251,113,133,.14); color:#fb7185!important; }
+.dropdown-divider{ border-color:var(--border); margin:6px 0; }
 
 /* ---------- DASHBOARD SPECIFIC ---------- */
 .hero-clock{
@@ -384,3 +396,50 @@ label{ font-size:.8rem; font-weight:600; color:var(--text-soft); margin-bottom:4
 a:focus-visible, button:focus-visible, .form-control:focus-visible{
   outline:2px solid rgb(var(--accent)); outline-offset:2px;
 }
+
+/* ---------- FAB (floating action button) ---------- */
+.fab-btn{
+  position:fixed; bottom:24px; right:20px; z-index:55;
+  width:58px; height:58px; border-radius:50%; border:none;
+  background:linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent-2)));
+  color:#fff; font-size:1.5rem; display:flex; align-items:center; justify-content:center;
+  box-shadow:0 12px 28px rgba(var(--accent),.45); transition:.25s var(--ease);
+}
+.fab-btn:hover{ transform:translateY(-3px) scale(1.04); box-shadow:0 16px 34px rgba(var(--accent),.55); color:#fff; }
+@media (max-width:991px){ .fab-btn{ bottom:86px; } }
+
+/* ---------- SYLLABUS: subject cards ---------- */
+.syllabus-card{ border-radius:18px; padding:18px; position:relative; overflow:hidden; height:100%; }
+.syllabus-card .code-chip{ font-family:var(--font-mono); }
+
+/* ---------- SYLLABUS: accordion (weeks) ---------- */
+.syl-accordion .accordion-item{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md)!important;
+  margin-bottom:10px; overflow:hidden;
+}
+.syl-accordion .accordion-header{ display:flex; align-items:stretch; }
+.syl-accordion .accordion-button{
+  background:transparent; color:var(--text); font-weight:700; font-size:.92rem;
+  box-shadow:none!important; padding:14px 16px; flex:1 1 auto; width:auto; min-width:0;
+}
+.syl-accordion .accordion-button:not(.collapsed){ background:rgba(var(--accent),.1); color:rgb(var(--accent)); }
+.syl-accordion .accordion-button::after{ filter:invert(1) grayscale(1) brightness(1.6); }
+[data-theme="light"] .syl-accordion .accordion-button::after{ filter:none; }
+.syl-accordion .accordion-body{ padding:6px 18px 18px; border-top:1px solid var(--border); color:var(--text); }
+.syl-week-tools{ display:flex; align-items:center; gap:4px; padding:0 10px; flex-shrink:0; }
+.syl-week-tools .btn-icon{ width:32px; height:32px; color:var(--text-soft); }
+.syl-week-tools .btn-icon.btn-icon-danger:hover{ color:rgb(var(--danger)); border-color:rgba(var(--danger),.4); }
+.syl-outcome-list{ padding-left:1.3em; margin-bottom:0; font-size:.88rem; color:var(--text); }
+.syl-outcome-list li{ margin-bottom:5px; }
+.syl-main-topic{ margin-bottom:12px; }
+.syl-main-topic:last-child{ margin-bottom:0; }
+.syl-main-topic-title{ font-weight:700; font-size:.9rem; display:flex; align-items:center; gap:8px; color:var(--text); }
+.syl-main-topic-title i{ color:rgb(var(--accent)); }
+.syl-subtopic-list{ padding-left:1.6em; margin:4px 0 0; font-size:.85rem; color:var(--text-soft); }
+.syl-subtopic-list li{ margin-bottom:3px; }
+
+/* ---------- SYLLABUS: week editor (modal) ---------- */
+.syl-edit-row{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.syl-edit-row .form-control{ flex:1; }
+.syl-topic-block{ border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px; margin-bottom:12px; background:var(--surface-2); }
+.syl-topic-block .syl-subtopics{ margin-left:18px; margin-top:8px; padding-left:12px; border-left:2px solid var(--border); }
