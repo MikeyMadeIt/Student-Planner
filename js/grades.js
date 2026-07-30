@@ -235,11 +235,11 @@ function componentBlockHtml(c,ci){
       <input class="form-control form-control-sm" style="flex:1" placeholder="Component name (e.g., Quizzes)"
         value="${escapeHtml(c.name)}" oninput="gradeDraft.components[${ci}].name=this.value;refreshGradePreview()">
       <div class="input-group input-group-sm" style="width:88px;flex-shrink:0">
-        <input type="number" min="0" max="100" step="1" class="form-control text-center" style="border-top-right-radius:0;border-bottom-right-radius:0;" placeholder="Wt."
+        <input type="number" min="0" max="100" step="1" class="form-control text-center" placeholder="Wt."
           value="${c.weight===0||c.weight===''?'':c.weight}"
           oninput="gradeDraft.components[${ci}].weight=this.value===''?0:+this.value;refreshGradePreview()"
           title="Weight %">
-        <span class="input-group-text" style="background:var(--surface);border-color:var(--border);color:var(--text-soft);padding:0 8px;font-size:.8rem;font-weight:600">%</span>
+        <span class="input-group-text" style="background: transparent; color: white; border: none;">%</span>
       </div>
       <button type="button" class="btn-icon btn-icon-sm" onclick="removeComponent(${ci})" title="Remove">
         <i class="bi bi-trash3" style="color:#fb7185"></i>
