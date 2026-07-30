@@ -453,7 +453,42 @@ function updateGwaCalcRow(i,field,value){
   if(!rows[i]) return;
   rows[i][field] = (field==='units'||field==='grade') ? (value===''?'':+value) : value;
   DB.saveGwaCalcRows(rows);
-  renderGwaCalculator();
+  // For text/number inputs: only refresh the result totals, don't re-render
+  // the rows (which destroys focus and dismisses the keyboard).
+  // For grade select (dropdown): safe to full re-render since it doesn't have focus text.
+  if(field==='grade'){
+    renderGwaCalculator();
+  } else {
+    refreshGwaTotals(rows);
+  }
+}
+
+function refreshGwaTotals(rows){
+  if(!rows) rows = DB.getGwaCalcRows();
+  let totalUnits=0, weightedSum=0, courseCount=0;
+  rows.forEach(r=>{
+    const u=+r.units||0, gr=+r.grade||0;
+    if(r.units!==''&&r.grade!==''){ totalUnits+=u; weightedSum+=u*gr; courseCount++; }
+  });
+  const result = courseCount>0&&totalUnits>0 ? weightedSum/totalUnits : null;
+  const passed = result!==null ? result<=3.00 : null;
+
+  document.getElementById('gwaCalcResult').textContent = result===null?'--':result.toFixed(2);
+
+  const meaningEl = document.getElementById('gwaCalcResultMeaning');
+  if(meaningEl){
+    meaningEl.textContent = result===null?'':gwaLabel(result);
+    meaningEl.style.color = result===null?'var(--text-faint)':passed?'rgb(52,211,153)':'rgb(251,113,133)';
+  }
+  const statusEl = document.getElementById('gwaCalcResultStatus');
+  if(statusEl){
+    statusEl.textContent = result===null?'':passed?'PASSED':'FAILED';
+    statusEl.style.color = result===null?'var(--text-faint)':passed?'rgba(52,211,153,.7)':'rgba(251,113,133,.7)';
+  }
+  const totUnitsEl = document.getElementById('gwaTotalUnits');
+  if(totUnitsEl) totUnitsEl.textContent = totalUnits;
+  const totCoursesEl = document.getElementById('gwaTotalCourses');
+  if(totCoursesEl) totCoursesEl.textContent = courseCount;
 }
 function addGwaCalcRow(){
   const rows = DB.getGwaCalcRows();
@@ -468,7 +503,6 @@ function removeGwaCalcRow(i){
   renderGwaCalculator();
 }
 function clearAllGwaRows(){
-  if(!confirm('Clear all GWA rows?')) return;
   DB.saveGwaCalcRows([{id:DB.uid(),label:'',units:'',grade:''}]);
   renderGwaCalculator();
 }
