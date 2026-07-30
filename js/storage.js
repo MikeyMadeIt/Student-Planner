@@ -21,6 +21,7 @@ const DB_KEYS = {
   notes: 'sp_notes',
   attendance: 'sp_attendance',
   grades: 'sp_grades',
+  gwaCalc: 'sp_gwa_calc',
   settings: 'sp_settings',
   semester: 'sp_semester',
   pomodoro: 'sp_pomodoro_stats',
@@ -111,8 +112,17 @@ function seedIfEmpty(){
   const attendance = [];
   writeKey(DB_KEYS.attendance, attendance);
 
-  const grades = subjects.map(s=>({ subjectId:s.id, quiz:[], activity:[], lab:[], project:[], midterm:null, finals:null }));
+  const grades = subjects.map((s,i)=>({
+    subjectId:s.id,
+    components: i===0 ? [
+      { id: uid(), name:'Quizzes', weight:20, score:88 },
+      { id: uid(), name:'Activities', weight:20, score:92 },
+      { id: uid(), name:'Midterm Exam', weight:25, score:85 },
+      { id: uid(), name:'Final Exam', weight:35, score:null },
+    ] : [],
+  }));
   writeKey(DB_KEYS.grades, grades);
+  writeKey(DB_KEYS.gwaCalc, []);
 
   writeKey(DB_KEYS.settings, DEFAULT_SETTINGS);
   writeKey(DB_KEYS.semester, DEFAULT_SEMESTER);
@@ -173,6 +183,10 @@ const DB = {
   // grades
   getGrades(){ return readKey(DB_KEYS.grades, []); },
   saveGrades(list){ return writeKey(DB_KEYS.grades, list); },
+
+  // GWA calculator (standalone scratchpad)
+  getGwaCalcRows(){ return readKey(DB_KEYS.gwaCalc, []); },
+  saveGwaCalcRows(list){ return writeKey(DB_KEYS.gwaCalc, list); },
 
   // university calendar events
   getUniversityEvents(){ return readKey(DB_KEYS.universityEvents, []); },

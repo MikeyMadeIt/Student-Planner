@@ -1,143 +1,474 @@
 /* ============================================================
-   GRADES.JS
+   GRADES.JS — Redesigned v2
+   1. Subject cards: compact collapsed view
+   2. Modal: wider assessment name, narrow score/total, live avg+weighted update
+   3. GWA Calculator: cleaner result area, total units + total courses
    ============================================================ */
 
+const GRADE_TABLE = [
+  { point:1.00, min:99, max:100, label:'Excellent' },
+  { point:1.25, min:96, max:98,  label:'Outstanding' },
+  { point:1.50, min:93, max:95,  label:'Superior' },
+  { point:1.75, min:90, max:92,  label:'Very Good' },
+  { point:2.00, min:87, max:89,  label:'Good' },
+  { point:2.25, min:84, max:86,  label:'Satisfactory' },
+  { point:2.50, min:81, max:83,  label:'Fairly Satisfactory' },
+  { point:2.75, min:78, max:80,  label:'Fair' },
+  { point:3.00, min:75, max:77,  label:'Passing' },
+  { point:5.00, min:0,  max:74,  label:'Failed' },
+];
+function percentToGWA(pct){
+  if(pct===null||pct===undefined||isNaN(pct)) return null;
+  for(const row of GRADE_TABLE){ if(pct>=row.min) return row.point; }
+  return 5.00;
+}
+function gwaLabel(point){
+  if(point===null||point===undefined) return '—';
+  const row = GRADE_TABLE.slice().sort((a,b)=>Math.abs(a.point-point)-Math.abs(b.point-point))[0];
+  return row ? row.label : '—';
+}
+function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
+
+/* ---- Data normalization ---- */
+function normalizeGradeRecord(g){
+  if(!Array.isArray(g.components)) g.components = [];
+  g.components.forEach(c=>{
+    if(!c.id) c.id = DB.uid();
+    if(!c.name) c.name = '';
+    if(c.weight===undefined||c.weight===null||isNaN(+c.weight)) c.weight = 0;
+    if(!Array.isArray(c.assessments)){
+      const oldScore = (c.rawScore!==null&&c.rawScore!==undefined&&c.rawScore!=='')
+        ? { id:DB.uid(), name:'Score', score:+c.rawScore, totalItems:c.totalItems!=null?+c.totalItems:null }
+        : (c.score!==null&&c.score!==undefined&&c.score!=='')
+          ? { id:DB.uid(), name:'Score', score:+c.score, totalItems:100 }
+          : null;
+      c.assessments = oldScore ? [oldScore] : [];
+    }
+    c.assessments.forEach(a=>{
+      if(!a.id) a.id = DB.uid();
+      a.score = (a.score===''||a.score===undefined) ? null : +a.score;
+      a.totalItems = (a.totalItems===''||a.totalItems===undefined||a.totalItems===null) ? null : +a.totalItems;
+    });
+  });
+  return g;
+}
+function syncGradesWithSubjects(){
+  const subjects = DB.getSubjects().filter(s=>!s.archived);
+  let grades = DB.getGrades().map(normalizeGradeRecord);
+  subjects.forEach(s=>{ if(!grades.find(g=>g.subjectId===s.id)) grades.push({subjectId:s.id,components:[]}); });
+  grades = grades.filter(g=>subjects.some(s=>s.id===g.subjectId));
+  DB.saveGrades(grades);
+  return grades;
+}
+
+/* ---- Grade math ---- */
+function assessmentPct(a){
+  if(a.score===null||a.totalItems===null||a.totalItems===0) return null;
+  return (a.score/a.totalItems)*100;
+}
+function componentAvgPct(c){
+  const valid = c.assessments.filter(a=>assessmentPct(a)!==null);
+  if(!valid.length) return null;
+  return valid.reduce((s,a)=>s+assessmentPct(a),0)/valid.length;
+}
+function componentWeightedScore(c){
+  const avg = componentAvgPct(c);
+  if(avg===null) return null;
+  return (avg*(+c.weight||0))/100;
+}
+function computeSubjectFinalPct(components){
+  if(!components||!components.length) return null;
+  const scored = components.filter(c=>componentWeightedScore(c)!==null);
+  if(!scored.length) return null;
+  return scored.reduce((s,c)=>s+componentWeightedScore(c),0);
+}
+function sumWeights(components){ return (components||[]).reduce((s,c)=>s+(+c.weight||0),0); }
+
+/* ---- Init ---- */
 function initGrades(){
   syncGradesWithSubjects();
   renderGradesOverview();
   renderGradeCards();
+  renderGradeReferenceTable();
+  renderGwaCalculator();
 }
 
-// make sure every non-archived subject has a grades record
-function syncGradesWithSubjects(){
-  const subs = DB.getSubjects().filter(s=>!s.archived);
-  let grades = DB.getGrades();
-  subs.forEach(s=>{
-    if(!grades.find(g=>g.subjectId===s.id)){
-      grades.push({ subjectId:s.id, quiz:[], activity:[], lab:[], project:[], midterm:null, finals:null });
-    }
-  });
-  DB.saveGrades(grades);
+/* ---- Overview ---- */
+function renderGradesOverview(){
+  const subjects = DB.getSubjects().filter(s=>!s.archived);
+  const grades = syncGradesWithSubjects();
+  const rows = subjects.map(s=>{
+    const g = grades.find(x=>x.subjectId===s.id)||{components:[]};
+    const pct = computeSubjectFinalPct(g.components);
+    const point = pct!==null ? percentToGWA(pct) : null;
+    return {subject:s,pct,point};
+  }).filter(r=>r.pct!==null);
+  let gwa=null;
+  if(rows.length){
+    const tu = rows.reduce((s,r)=>s+(+r.subject.units||0),0);
+    if(tu>0) gwa = rows.reduce((s,r)=>s+r.point*(+r.subject.units||0),0)/tu;
+  }
+  document.getElementById('gGwa').textContent = gwa===null?'--':gwa.toFixed(2);
+  document.getElementById('gGwaSub').textContent = gwa===null?'1.00–5.00 scale':`${gwaLabel(gwa)} · 1.00–5.00 scale`;
 }
 
-function avgArr(arr){ return arr && arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null; }
-
+/* ============================================================
+   SUBJECT CARDS — compact collapsed view
+   ============================================================ */
 function renderGradeCards(){
   const wrap = document.getElementById('gradesWrap');
   const subs = DB.getSubjects().filter(s=>!s.archived);
-  const grades = DB.getGrades();
-  if(!subs.length){ wrap.innerHTML = `<div class="col-12"><div class="glass card-pad text-center py-5 text-faint">Add subjects in Schedule to start tracking grades.</div></div>`; return; }
-
+  const grades = DB.getGrades().map(normalizeGradeRecord);
+  if(!subs.length){
+    wrap.innerHTML=`<div class="col-12"><div class="glass card-pad text-center py-5 text-faint">Add subjects in Schedule to start tracking grades.</div></div>`;
+    return;
+  }
   wrap.innerHTML = subs.map(s=>{
-    const g = grades.find(x=>x.subjectId===s.id) || {quiz:[],activity:[],lab:[],project:[]};
-    const avg = computeSubjAvg(g);
+    const g = grades.find(x=>x.subjectId===s.id)||{components:[]};
+    const pct = computeSubjectFinalPct(g.components);
+    const point = pct!==null ? percentToGWA(pct) : null;
+    const totalWeight = sumWeights(g.components);
+    const weightWarn = g.components.length && totalWeight!==100;
+    const collapseId = `gc-${s.id}`;
     return `<div class="col-md-6 col-xl-4">
-      <div class="glass card-pad hover-lift h-100" style="border-left:4px solid ${s.color}">
-        <div class="d-flex justify-content-between align-items-start">
-          <div><div class="fw-bold">${s.code}</div><div class="text-faint" style="font-size:.78rem">${escapeHtml(s.desc)}</div></div>
-          <button class="btn-ghost btn btn-sm" onclick="openGradeModal('${s.id}')"><i class="bi bi-pencil"></i></button>
-        </div>
-        <div class="d-flex justify-content-between align-items-end mt-3">
-          <div>
-            <div class="stat-num">${avg===null?'--':avg.toFixed(1)+'%'}</div>
-            <div class="text-faint" style="font-size:.72rem">Overall average</div>
+      <div class="grade-card hover-lift" style="border-left:3px solid ${s.color}">
+        <!-- Collapsed: always visible -->
+        <div class="grade-card-top">
+          <div class="grade-card-info">
+            <div class="grade-card-code">${escapeHtml(s.code)}</div>
+            <div class="grade-card-pct">${pct===null?'--':pct.toFixed(1)+'%'}</div>
           </div>
-          <span class="chip">${avg===null?'--':percentTo4ptG(avg).toFixed(1)+' GP'}</span>
+          <div class="grade-card-actions">
+            <span class="chip chip-sm">${point===null?'--':'GWA '+point.toFixed(2)}</span>
+            <button class="btn-icon btn-icon-sm" onclick="openGradeModal('${s.id}')" title="Edit"><i class="bi bi-pencil"></i></button>
+            <button class="btn-icon btn-icon-sm chev-toggle" data-bs-toggle="collapse" data-bs-target="#${collapseId}"><i class="bi bi-chevron-down"></i></button>
+          </div>
         </div>
-        <div class="progress mt-2"><div class="progress-bar" style="width:${avg||0}%"></div></div>
-        <div class="row text-center mt-3" style="font-size:.7rem">
-          <div class="col"><div class="text-faint">Quiz</div><b>${fmtAvg(avgArr(g.quiz))}</b></div>
-          <div class="col"><div class="text-faint">Activity</div><b>${fmtAvg(avgArr(g.activity))}</b></div>
-          <div class="col"><div class="text-faint">Lab</div><b>${fmtAvg(avgArr(g.lab))}</b></div>
-          <div class="col"><div class="text-faint">Project</div><b>${fmtAvg(avgArr(g.project))}</b></div>
-          <div class="col"><div class="text-faint">Midterm</div><b>${fmtAvg(g.midterm)}</b></div>
-          <div class="col"><div class="text-faint">Finals</div><b>${fmtAvg(g.finals)}</b></div>
+        <div class="progress grade-card-bar"><div class="progress-bar" style="width:${pct||0}%"></div></div>
+        <!-- Expanded detail -->
+        <div class="collapse" id="${collapseId}">
+          <div class="grade-card-detail">
+            ${s.desc?`<div class="text-faint mb-2" style="font-size:.76rem">${escapeHtml(s.desc)}</div>`:''}
+            ${g.components.length ? `
+              <div class="d-flex flex-column gap-1">
+                ${g.components.map(c=>{
+                  const ws = componentWeightedScore(c);
+                  const avg = componentAvgPct(c);
+                  return `<div class="d-flex justify-content-between align-items-center" style="font-size:.75rem">
+                    <span class="text-soft">${escapeHtml(c.name)} <span class="text-faint">(${c.weight}%)</span></span>
+                    <div class="d-flex gap-2">
+                      <span class="text-faint">${avg===null?'—':avg.toFixed(1)+'%'}</span>
+                      <span class="mono fw-bold" style="min-width:36px;text-align:right">${ws===null?'—':ws.toFixed(2)}</span>
+                    </div>
+                  </div>`;
+                }).join('')}
+              </div>
+              ${weightWarn?`<div class="text-faint mt-2" style="font-size:.68rem;color:rgb(var(--accent-2))"><i class="bi bi-exclamation-triangle me-1"></i>Weights total ${totalWeight}%, not 100%</div>`:''}
+            ` : `<div class="text-faint" style="font-size:.76rem">No components yet — tap <i class="bi bi-pencil"></i> to add.</div>`}
+          </div>
         </div>
       </div>
     </div>`;
   }).join('');
 }
-function fmtAvg(v){ return v===null || v===undefined || isNaN(v) ? '--' : Math.round(v); }
-function computeSubjAvg(g){
-  const parts = [avgArr(g.quiz), avgArr(g.activity), avgArr(g.lab), avgArr(g.project), g.midterm, g.finals]
-    .filter(v=>v!==null && v!==undefined && !isNaN(v));
-  return parts.length ? parts.reduce((a,b)=>a+b,0)/parts.length : null;
-}
-function percentTo4ptG(pct){
-  if(pct>=97) return 4.0; if(pct>=93) return 3.7; if(pct>=90) return 3.3;
-  if(pct>=87) return 3.0; if(pct>=83) return 2.7; if(pct>=80) return 2.3;
-  if(pct>=77) return 2.0; if(pct>=73) return 1.7; if(pct>=70) return 1.3;
-  if(pct>=60) return 1.0; return 0;
-}
 
-function renderGradesOverview(){
-  const subs = DB.getSubjects().filter(s=>!s.archived);
-  const grades = DB.getGrades();
-  let totalPoints=0, totalUnits=0;
-  let ranked = [];
-  subs.forEach(s=>{
-    const g = grades.find(x=>x.subjectId===s.id); if(!g) return;
-    const avg = computeSubjAvg(g);
-    if(avg!==null){ totalPoints += percentTo4ptG(avg)*s.units; totalUnits += s.units; ranked.push({s, avg}); }
-  });
-  const gpa = totalUnits ? totalPoints/totalUnits : null;
-  document.getElementById('gGpa').textContent = gpa===null ? '--' : gpa.toFixed(2);
-  const standing = gpa===null ? '--' : gpa>=3.5?"Dean's List": gpa>=3.0?'Very Good': gpa>=2.0?'Good':'Needs Improvement';
-  document.getElementById('gStanding').textContent = standing;
-  document.getElementById('gStandingSub').textContent = gpa===null ? 'Add scores to see standing' : `Based on ${ranked.length} subject(s)`;
-  ranked.sort((a,b)=>b.avg-a.avg);
-  if(ranked.length){
-    document.getElementById('gTop').textContent = ranked[0].s.code;
-    document.getElementById('gTopSub').textContent = `${ranked[0].avg.toFixed(1)}% average`;
-  }
-}
+/* ============================================================
+   GRADE MODAL — fixed layout, live avg/weighted updates
+   Assessment grid: wide name col, narrow score/total
+   ============================================================ */
+let gradeDraft=null, gradeDraftSubjectId=null;
+
+// Column layout: assessment name gets most space, score+total are narrow
+const ASSESS_GRID = '1fr 56px 56px 52px 28px';
 
 function openGradeModal(subjectId){
   const s = DB.getSubject(subjectId);
-  const grades = DB.getGrades();
-  const g = grades.find(x=>x.subjectId===subjectId);
-  document.querySelector('#gradeModal .modal-title').textContent = `${s.code} — Scores`;
-  document.getElementById('gradeModalBody').innerHTML = `
-    <input type="hidden" id="gmSubjectId" value="${subjectId}">
-    ${scoreListEditor('Quiz Scores','quiz', g.quiz)}
-    ${scoreListEditor('Activity Scores','activity', g.activity)}
-    ${scoreListEditor('Laboratory Scores','lab', g.lab)}
-    ${scoreListEditor('Project Scores','project', g.project)}
-    <div class="row g-2 mt-2">
-      <div class="col-6"><label>Midterm (%)</label><input type="number" min="0" max="100" class="form-control" id="gmMidterm" value="${g.midterm ?? ''}"></div>
-      <div class="col-6"><label>Finals (%)</label><input type="number" min="0" max="100" class="form-control" id="gmFinals" value="${g.finals ?? ''}"></div>
-    </div>
-    <button class="btn btn-accent w-100 mt-3" onclick="saveGrades()"><i class="bi bi-check2 me-1"></i>Save Scores</button>`;
+  const grades = DB.getGrades().map(normalizeGradeRecord);
+  const g = grades.find(x=>x.subjectId===subjectId)||{subjectId,components:[]};
+  gradeDraftSubjectId = subjectId;
+  gradeDraft = {components: JSON.parse(JSON.stringify(g.components||[]))};
+  if(!gradeDraft.components.length) gradeDraft.components.push({id:DB.uid(),name:'',weight:'',assessments:[]});
+  document.querySelector('#gradeModal .modal-title').textContent = `${s.code} — Grading Breakdown`;
+  renderGradeModalBody();
   new bootstrap.Modal(document.getElementById('gradeModal')).show();
 }
-function scoreListEditor(label, key, arr){
-  return `<div class="mb-3">
-    <label>${label}</label>
-    <div id="gm_${key}">${(arr||[]).map((v,i)=>scoreRow(key,i,v)).join('')}</div>
-    <button type="button" class="btn btn-ghost btn-sm mt-1" onclick="addScoreRow('${key}')"><i class="bi bi-plus"></i> Add score</button>
+
+function renderGradeModalBody(){
+  const body = document.getElementById('gradeModalBody');
+  const finalPct = computeSubjectFinalPct(gradeDraft.components);
+  const totalWeight = sumWeights(gradeDraft.components);
+  const weightWarn = totalWeight!==100 && totalWeight!==0;
+
+  body.innerHTML = `
+    <p class="text-faint mb-3" style="font-size:.8rem">
+      <strong>How it works:</strong> Create components (e.g., Quizzes 30%, Midterm 25%).
+      Add assessments under each — enter the name, score, and total items.
+      The system averages each component's assessments, applies the weight, and sums to a final grade.
+    </p>
+    <div id="componentAccordion" class="d-flex flex-column gap-3">
+      ${gradeDraft.components.map((c,ci)=>componentBlockHtml(c,ci)).join('')}
+    </div>
+    <button type="button" class="btn btn-ghost btn-sm mt-3 w-100" onclick="addComponent()">
+      <i class="bi bi-plus-lg me-1"></i>Add Component
+    </button>
+    ${weightWarn?`<div class="mt-2 p-2 rounded" style="background:rgba(var(--accent-2),.1);font-size:.76rem;color:rgb(var(--accent-2))">
+      <i class="bi bi-exclamation-triangle me-1"></i>Weights total <strong>${totalWeight}%</strong> — should add up to 100%.
+    </div>`:''}
+    <div class="text-center mt-4 pt-3" style="border-top:1px solid var(--border)">
+      <div class="text-faint" style="font-size:.68rem;text-transform:uppercase;letter-spacing:.07em">Computed Final Grade</div>
+      <div class="stat-num" style="font-size:2rem" id="modalFinalPct">${finalPct===null?'--':finalPct.toFixed(2)+'%'}</div>
+      <div class="text-faint" style="font-size:.8rem" id="modalFinalGwa">
+        ${finalPct===null?'Add assessments to preview':`GWA ${percentToGWA(finalPct).toFixed(2)} · ${gwaLabel(percentToGWA(finalPct))}`}
+      </div>
+    </div>
+    <button class="btn btn-accent w-100 mt-3" onclick="saveGradeComponents()">
+      <i class="bi bi-check2 me-1"></i>Save Grading Breakdown
+    </button>`;
+}
+
+function componentBlockHtml(c,ci){
+  const avg = componentAvgPct(c);
+  const ws = componentWeightedScore(c);
+  return `<div class="comp-block" style="background:var(--surface-2);border:1px solid var(--border);border-radius:14px;overflow:hidden">
+    <!-- Header: name + weight input-group + delete -->
+    <div class="d-flex align-items-center gap-2 p-2" style="border-bottom:1px solid var(--border)">
+      <input class="form-control form-control-sm" style="flex:1" placeholder="Component name (e.g., Quizzes)"
+        value="${escapeHtml(c.name)}" oninput="gradeDraft.components[${ci}].name=this.value;refreshGradePreview()">
+      <div class="input-group input-group-sm" style="width:88px;flex-shrink:0">
+        <input type="number" min="0" max="100" step="1" class="form-control text-center" style="border-top-right-radius:0;border-bottom-right-radius:0;" placeholder="Wt."
+          value="${c.weight===0||c.weight===''?'':c.weight}"
+          oninput="gradeDraft.components[${ci}].weight=this.value===''?0:+this.value;refreshGradePreview()"
+          title="Weight %">
+        <span class="input-group-text" style="background:var(--surface);border-color:var(--border);color:var(--text-soft);padding:0 8px;font-size:.8rem;font-weight:600">%</span>
+      </div>
+      <button type="button" class="btn-icon btn-icon-sm" onclick="removeComponent(${ci})" title="Remove">
+        <i class="bi bi-trash3" style="color:#fb7185"></i>
+      </button>
+    </div>
+    <!-- Assessment column headers -->
+    <div style="display:grid;grid-template-columns:${ASSESS_GRID};gap:5px;padding:6px 10px 3px;font-size:.66rem;color:var(--text-faint);font-weight:700;text-transform:uppercase;letter-spacing:.04em">
+      <div>Assessment</div>
+      <div class="text-center">Score</div>
+      <div class="text-center">Out of</div>
+      <div class="text-center">%</div>
+      <div></div>
+    </div>
+    <!-- Assessment rows -->
+    <div id="assessRows-${ci}">
+      ${(c.assessments||[]).map((a,ai)=>assessmentRowHtml(ci,ai,a)).join('')}
+    </div>
+    <!-- Footer: add button + live avg/weighted -->
+    <div class="d-flex align-items-center justify-content-between px-2 py-2" style="border-top:1px solid var(--border);margin-top:2px">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="addAssessment(${ci})" style="font-size:.74rem;padding:2px 9px">
+        <i class="bi bi-plus-lg me-1"></i>Add
+      </button>
+      <div class="text-end" style="font-size:.74rem" id="compSummary-${ci}">
+        ${compSummaryHtml(avg,ws)}
+      </div>
+    </div>
   </div>`;
 }
-function scoreRow(key,i,v){
-  return `<div class="d-flex gap-2 mb-1 score-row" data-key="${key}"><input type="number" min="0" max="100" class="form-control form-control-sm" value="${v}" placeholder="%"><button type="button" class="btn-icon" style="width:28px;height:28px" onclick="this.parentElement.remove()"><i class="bi bi-x" style="font-size:.8rem"></i></button></div>`;
+
+function compSummaryHtml(avg,ws){
+  return `<span class="text-faint">Avg: </span><span class="mono fw-bold">${avg===null?'—':avg.toFixed(1)+'%'}</span>`
+       + `<span class="text-faint ms-2">→ Weighted: </span><span class="mono fw-bold" style="color:rgb(var(--accent))">${ws===null?'—':ws.toFixed(2)}</span>`;
 }
-function addScoreRow(key){
-  document.getElementById('gm_'+key).insertAdjacentHTML('beforeend', scoreRow(key,0,''));
+
+function assessmentRowHtml(ci,ai,a){
+  const pct = assessmentPct(a);
+  const pctColor = pct===null?'var(--text-faint)':pct>=75?'rgb(52,211,153)':'rgb(251,113,133)';
+  return `<div id="assessRow-${ci}-${ai}" style="display:grid;grid-template-columns:${ASSESS_GRID};gap:5px;padding:3px 10px;align-items:center">
+    <input class="form-control form-control-sm" placeholder="e.g., Quiz 1"
+      value="${escapeHtml(a.name||'')}"
+      oninput="gradeDraft.components[${ci}].assessments[${ai}].name=this.value">
+    <input type="number" min="0" step="0.01" class="form-control form-control-sm text-center" placeholder="0"
+      value="${a.score===null?'':a.score}"
+      oninput="onAssessInput(${ci},${ai},'score',this.value)">
+    <input type="number" min="0" step="0.01" class="form-control form-control-sm text-center" placeholder="100"
+      value="${a.totalItems===null?'':a.totalItems}"
+      oninput="onAssessInput(${ci},${ai},'totalItems',this.value)">
+    <div class="text-center mono" id="assessPct-${ci}-${ai}" style="font-size:.76rem;color:${pctColor}">
+      ${pct===null?'—':pct.toFixed(1)+'%'}
+    </div>
+    <button type="button" class="btn-icon btn-icon-sm" onclick="removeAssessment(${ci},${ai})">
+      <i class="bi bi-x-lg" style="font-size:.6rem"></i>
+    </button>
+  </div>`;
 }
-function saveGrades(){
-  const subjectId = document.getElementById('gmSubjectId').value;
-  const grades = DB.getGrades();
-  const idx = grades.findIndex(g=>g.subjectId===subjectId);
-  const readArr = (key)=> [...document.querySelectorAll(`.score-row[data-key="${key}"] input`)].map(i=>parseFloat(i.value)).filter(v=>!isNaN(v));
-  const updated = {
-    subjectId,
-    quiz: readArr('quiz'), activity: readArr('activity'), lab: readArr('lab'), project: readArr('project'),
-    midterm: document.getElementById('gmMidterm').value !== '' ? parseFloat(document.getElementById('gmMidterm').value) : null,
-    finals: document.getElementById('gmFinals').value !== '' ? parseFloat(document.getElementById('gmFinals').value) : null,
-  };
-  if(idx>-1) grades[idx] = updated; else grades.push(updated);
+
+function onAssessInput(ci,ai,field,value){
+  const a = gradeDraft.components[ci].assessments[ai];
+  a[field] = value==='' ? null : +value;
+  // Update just the % cell
+  const pct = assessmentPct(a);
+  const pctEl = document.getElementById(`assessPct-${ci}-${ai}`);
+  if(pctEl){
+    pctEl.textContent = pct===null?'—':pct.toFixed(1)+'%';
+    pctEl.style.color = pct===null?'var(--text-faint)':pct>=75?'rgb(52,211,153)':'rgb(251,113,133)';
+  }
+  // Update component summary (avg + weighted)
+  updateCompSummary(ci);
+  refreshGradePreview();
+}
+
+function updateCompSummary(ci){
+  const c = gradeDraft.components[ci];
+  const avg = componentAvgPct(c);
+  const ws = componentWeightedScore(c);
+  const el = document.getElementById(`compSummary-${ci}`);
+  if(el) el.innerHTML = compSummaryHtml(avg,ws);
+}
+
+function addAssessment(ci){
+  gradeDraft.components[ci].assessments.push({id:DB.uid(),name:'',score:null,totalItems:null});
+  rerenderAssessRows(ci);
+  updateCompSummary(ci);
+  refreshGradePreview();
+}
+
+function removeAssessment(ci,ai){
+  gradeDraft.components[ci].assessments.splice(ai,1);
+  rerenderAssessRows(ci);
+  updateCompSummary(ci);
+  refreshGradePreview();
+}
+
+function rerenderAssessRows(ci){
+  const wrap = document.getElementById(`assessRows-${ci}`);
+  if(wrap) wrap.innerHTML = (gradeDraft.components[ci].assessments||[]).map((a,ai)=>assessmentRowHtml(ci,ai,a)).join('');
+}
+
+function addComponent(){
+  gradeDraft.components.push({id:DB.uid(),name:'',weight:0,assessments:[]});
+  renderGradeModalBody();
+}
+
+function removeComponent(ci){
+  gradeDraft.components.splice(ci,1);
+  if(!gradeDraft.components.length) gradeDraft.components.push({id:DB.uid(),name:'',weight:0,assessments:[]});
+  renderGradeModalBody();
+}
+
+function refreshGradePreview(){
+  const finalPct = computeSubjectFinalPct(gradeDraft.components);
+  const pctEl = document.getElementById('modalFinalPct');
+  const gwaEl = document.getElementById('modalFinalGwa');
+  if(pctEl) pctEl.textContent = finalPct===null?'--':finalPct.toFixed(2)+'%';
+  if(gwaEl) gwaEl.textContent = finalPct===null?'Add assessments to preview':`GWA ${percentToGWA(finalPct).toFixed(2)} · ${gwaLabel(percentToGWA(finalPct))}`;
+}
+
+function saveGradeComponents(){
+  const cleaned = gradeDraft.components
+    .map(c=>({
+      id:c.id||DB.uid(), name:(c.name||'').trim(), weight:+c.weight||0,
+      assessments:(c.assessments||[])
+        .filter(a=>a.name||(a.score!==null&&a.totalItems!==null))
+        .map(a=>({id:a.id||DB.uid(),name:(a.name||'').trim(),score:a.score,totalItems:a.totalItems}))
+    })).filter(c=>c.name);
+  const grades = DB.getGrades().map(normalizeGradeRecord);
+  const idx = grades.findIndex(g=>g.subjectId===gradeDraftSubjectId);
+  if(idx>-1) grades[idx].components=cleaned; else grades.push({subjectId:gradeDraftSubjectId,components:cleaned});
   DB.saveGrades(grades);
-  bootstrap.Modal.getInstance(document.getElementById('gradeModal')).hide();
-  Toast.show('Scores saved');
-  renderGradesOverview(); renderGradeCards();
+  const inst = bootstrap.Modal.getInstance(document.getElementById('gradeModal'));
+  if(inst) inst.hide();
+  if(typeof Toast!=='undefined') Toast.show('Grading breakdown saved');
+  gradeDraft=null; gradeDraftSubjectId=null;
+  renderGradesOverview();
+  renderGradeCards();
 }
-function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+/* ---- Grade reference table ---- */
+function renderGradeReferenceTable(){
+  const host = document.getElementById('gradeReferenceTable');
+  if(!host) return;
+  host.innerHTML = GRADE_TABLE.map(row=>`
+    <div class="ref-row">
+      <div class="ref-col-grade"><span class="grade-badge">${row.point.toFixed(2)}</span></div>
+      <div class="ref-col-range text-soft">${row.max===100?`${row.min}–${row.max}%`:row.min===0?`Below ${row.max+1}%`:`${row.min}–${row.max}%`}</div>
+      <div class="ref-col-meaning">${row.label}</div>
+    </div>`).join('');
+}
+
+/* ============================================================
+   GWA CALCULATOR — v2: clean result area, total units + courses
+   ============================================================ */
+function renderGwaCalculator(){
+  const wrap = document.getElementById('gwaCalcRows');
+  if(!wrap) return;
+  let rows = DB.getGwaCalcRows();
+  if(!rows.length){ rows=[{id:DB.uid(),label:'',units:'',grade:''}]; DB.saveGwaCalcRows(rows); }
+
+  wrap.innerHTML = rows.map((r,i)=>gwaCalcRowHtml(r,i)).join('');
+
+  let totalUnits=0, weightedSum=0, courseCount=0;
+  rows.forEach(r=>{
+    const u=+r.units||0, gr=+r.grade||0;
+    if(r.units!==''&&r.grade!==''){ totalUnits+=u; weightedSum+=u*gr; courseCount++; }
+  });
+
+  const result = courseCount>0&&totalUnits>0 ? weightedSum/totalUnits : null;
+  const passed = result!==null ? result<=3.00 : null;
+
+  document.getElementById('gwaCalcResult').textContent = result===null?'--':result.toFixed(2);
+
+  const meaningEl = document.getElementById('gwaCalcResultMeaning');
+  if(meaningEl){
+    meaningEl.textContent = result===null?'':gwaLabel(result);
+    meaningEl.style.color = result===null?'var(--text-faint)':passed?'rgb(52,211,153)':'rgb(251,113,133)';
+  }
+
+  const statusEl = document.getElementById('gwaCalcResultStatus');
+  if(statusEl){
+    statusEl.textContent = result===null?'':passed?'PASSED':'FAILED';
+    statusEl.style.color = result===null?'var(--text-faint)':passed?'rgba(52,211,153,.7)':'rgba(251,113,133,.7)';
+  }
+
+  const totUnitsEl = document.getElementById('gwaTotalUnits');
+  if(totUnitsEl) totUnitsEl.textContent = totalUnits;
+  const totCoursesEl = document.getElementById('gwaTotalCourses');
+  if(totCoursesEl) totCoursesEl.textContent = courseCount;
+}
+
+function gwaCalcRowHtml(r,i){
+  const gradeOptions = ['','1.00','1.25','1.50','1.75','2.00','2.25','2.50','2.75','3.00','5.00'];
+  const sel = gradeOptions.map(v=>
+    `<option value="${v}" ${r.grade==v&&v!==''?'selected':''}>${v===''?'Select grade':v}</option>`
+  ).join('');
+  return `<div class="gwa-input-row">
+    <input class="form-control form-control-sm gwa-col-code" placeholder="e.g., HUM 1"
+      value="${escapeHtml(r.label||'')}" oninput="updateGwaCalcRow(${i},'label',this.value)">
+    <input type="number" min="0" step="0.5" class="form-control form-control-sm text-center gwa-col-units" placeholder="Uts."
+      value="${r.units===''?'':r.units}" oninput="updateGwaCalcRow(${i},'units',this.value)">
+    <select class="form-select form-select-sm gwa-col-grade" onchange="updateGwaCalcRow(${i},'grade',this.value)">
+      ${sel}
+    </select>
+    <button type="button" class="btn-icon btn-icon-sm" onclick="removeGwaCalcRow(${i})">
+      <i class="bi bi-trash3" style="color:#fb7185"></i>
+    </button>
+  </div>`;
+}
+
+function updateGwaCalcRow(i,field,value){
+  const rows = DB.getGwaCalcRows();
+  if(!rows[i]) return;
+  rows[i][field] = (field==='units'||field==='grade') ? (value===''?'':+value) : value;
+  DB.saveGwaCalcRows(rows);
+  renderGwaCalculator();
+}
+function addGwaCalcRow(){
+  const rows = DB.getGwaCalcRows();
+  rows.push({id:DB.uid(),label:'',units:'',grade:''});
+  DB.saveGwaCalcRows(rows);
+  renderGwaCalculator();
+}
+function removeGwaCalcRow(i){
+  const rows = DB.getGwaCalcRows();
+  rows.splice(i,1);
+  DB.saveGwaCalcRows(rows.length?rows:[{id:DB.uid(),label:'',units:'',grade:''}]);
+  renderGwaCalculator();
+}
+function clearAllGwaRows(){
+  if(!confirm('Clear all GWA rows?')) return;
+  DB.saveGwaCalcRows([{id:DB.uid(),label:'',units:'',grade:''}]);
+  renderGwaCalculator();
+}
