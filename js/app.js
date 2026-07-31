@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { href:'wallpaper.html', icon:'bi-phone-fill', label:'Wallpaper', key:'wallpaper' },
   { href:'settings.html', icon:'bi-gear-fill', label:'Settings', key:'settings' },
   { href:'university.html', icon:'bi-building-fill', label:'University', key:'university' },
+  { href:'curriculum.html', icon:'bi-book-half', label:'Curriculum', key:'curriculum' },
 ];
 const MOBILE_NAV_KEYS = ['dashboard','schedule','tasks','calendar'];
 
