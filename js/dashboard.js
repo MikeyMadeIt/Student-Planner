@@ -293,7 +293,7 @@ const Pomo = {
   custom(){
     const body = document.getElementById('quickModalBody');
     body.innerHTML = `
-      <h5 class="mb-3"><i class="bi bi-sliders me-2"></i>Custom Timer</h5>
+      <div class="modal-header" style="border:none;padding:0 0 12px 0"><h5 class="modal-title"><i class="bi bi-sliders me-2"></i>Custom Timer</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
       <div class="row g-3">
         <div class="col-6">
           <label>Focus minutes</label>
@@ -387,7 +387,7 @@ function quickAddModal(type){
   if(type==='task'){
     const subs = DB.getSubjects();
     body.innerHTML = `
-      <h5 class="mb-3"><i class="bi bi-plus-square me-2"></i>Add Task</h5>
+      <div class="modal-header" style="border:none;padding:0 0 12px 0"><h5 class="modal-title"><i class="bi bi-plus-square me-2"></i>Add Task</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
       <div class="mb-2"><label>Title</label><input class="form-control" id="qaTitle" placeholder="e.g. Finish lab report"></div>
       <div class="row g-2 mb-2">
         <div class="col-6"><label>Category</label><select class="form-select" id="qaCat"><option>Homework</option><option>Project</option><option>Quiz</option><option>Exam</option><option>Personal</option><option>Organization</option></select></div>
@@ -401,13 +401,13 @@ function quickAddModal(type){
       <button class="btn btn-accent w-100" onclick="saveQuickTask()">Save Task</button>`;
   } else if(type==='note'){
     body.innerHTML = `
-      <h5 class="mb-3"><i class="bi bi-sticky me-2"></i>Add Note</h5>
+      <div class="modal-header" style="border:none;padding:0 0 12px 0"><h5 class="modal-title"><i class="bi bi-sticky me-2"></i>Add Note</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
       <div class="mb-2"><label>Title</label><input class="form-control" id="qaNTitle" placeholder="Note title"></div>
       <div class="mb-3"><label>Content</label><textarea class="form-control" id="qaNContent" rows="4" placeholder="Write your note…"></textarea></div>
       <button class="btn btn-accent w-100" onclick="saveQuickNoteModal()">Save Note</button>`;
   } else if(type==='subject'){
     body.innerHTML = `
-      <h5 class="mb-3"><i class="bi bi-journal-plus me-2"></i>Add Subject</h5>
+      <div class="modal-header" style="border:none;padding:0 0 12px 0"><h5 class="modal-title"><i class="bi bi-journal-plus me-2"></i>Add Subject</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
       <p class="text-soft" style="font-size:.85rem">Full subject setup (days, room, professor, color) lives on the Schedule page for a smoother flow.</p>
       <button class="btn btn-accent w-100" onclick="location.href='schedule.html?new=1'">Go to Schedule</button>`;
   }

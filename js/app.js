@@ -3,18 +3,22 @@
    ============================================================ */
 
 const NAV_ITEMS = [
-  { href:'index.html', icon:'bi-grid-1x2-fill', label:'Dashboard', key:'dashboard' },
-  { href:'schedule.html', icon:'bi-calendar2-week-fill', label:'Schedule', key:'schedule' },
-  { href:'syllabus.html', icon:'bi-journal-bookmark-fill', label:'Syllabus', key:'syllabus' },
-  { href:'calendar.html', icon:'bi-calendar3', label:'Calendar', key:'calendar' },
-  { href:'tasks.html', icon:'bi-check2-square', label:'Tasks', key:'tasks' },
-  { href:'grades.html', icon:'bi-mortarboard-fill', label:'Grades', key:'grades' },
-  { href:'attendance.html', icon:'bi-person-check-fill', label:'Attendance', key:'attendance' },
-  { href:'notes.html', icon:'bi-journal-text', label:'Notes', key:'notes' },
-  { href:'wallpaper.html', icon:'bi-phone-fill', label:'Wallpaper', key:'wallpaper' },
-  { href:'settings.html', icon:'bi-gear-fill', label:'Settings', key:'settings' },
-  { href:'university.html', icon:'bi-building-fill', label:'University', key:'university' },
-  { href:'curriculum.html', icon:'bi-book-half', label:'Curriculum', key:'curriculum' },
+  // Primary
+  { href:'index.html',      icon:'bi-grid-1x2-fill',        label:'Dashboard',  key:'dashboard'  },
+  { href:'schedule.html',   icon:'bi-calendar2-week-fill',  label:'Schedule',   key:'schedule'   },
+  { href:'tasks.html',      icon:'bi-check2-square',        label:'Tasks',      key:'tasks'      },
+  { href:'calendar.html',   icon:'bi-calendar3',            label:'Calendar',   key:'calendar'   },
+  // Academics
+  { href:'grades.html',     icon:'bi-mortarboard-fill',     label:'Grades',     key:'grades'     },
+  { href:'attendance.html', icon:'bi-person-check-fill',    label:'Attendance', key:'attendance' },
+  { href:'syllabus.html',   icon:'bi-journal-bookmark-fill',label:'Syllabus',   key:'syllabus'   },
+  { href:'notes.html',      icon:'bi-journal-text',         label:'Notes',      key:'notes'      },
+  // University
+  { href:'university.html', icon:'bi-building-fill',        label:'University', key:'university' },
+  { href:'curriculum.html', icon:'bi-book-half',            label:'Curriculum', key:'curriculum' },
+  // Misc
+  { href:'wallpaper.html',  icon:'bi-phone-fill',           label:'Wallpaper',  key:'wallpaper'  },
+  { href:'settings.html',   icon:'bi-gear-fill',            label:'Settings',   key:'settings'   },
 ];
 const MOBILE_NAV_KEYS = ['dashboard','schedule','tasks','calendar'];
 
@@ -22,16 +26,26 @@ function renderShell(activeKey){
   // sidebar
   const sidebar = document.getElementById('sidebar');
   if(sidebar){
-    sidebar.innerHTML = `
-      <div class="brand"><span class="dot"><i class="bi bi-mortarboard"></i></span> Planner</div>
-      <div>
-        ${NAV_ITEMS.map(n=>`<a class="nav-link ${n.key===activeKey?'active':''}" href="${n.href}"><i class="bi ${n.icon}"></i>${n.label}</a>`).join('')}
-      </div>
-      <div class="mt-auto pt-3">
-        <div class="nav-section-label">Quick</div>
-        <a class="nav-link" href="#" onclick="openQuickAdd('task');return false;"><i class="bi bi-plus-circle"></i>Add Task</a>
-        <a class="nav-link" href="#" onclick="Toast.confirmExport();return false;"><i class="bi bi-download"></i>Export Data</a>
-      </div>`;
+    const sidebarGroups = [
+      { label: null,         keys: ['dashboard'] },
+      { label: 'Academics',  keys: ['schedule','tasks','calendar','grades','attendance','syllabus','notes'] },
+      { label: 'University', keys: ['university','curriculum'] },
+      { label: 'App',        keys: ['wallpaper','settings'] },
+    ];
+    const itemMap = Object.fromEntries(NAV_ITEMS.map(n=>[n.key,n]));
+    let sidebarHtml = `<div class="brand"><span class="dot"><i class="bi bi-mortarboard"></i></span> Planner</div><nav class="d-flex flex-column gap-0 flex-grow-1">`;
+    sidebarGroups.forEach(g => {
+      if(g.label) sidebarHtml += `<div class="nav-group-label">${g.label}</div>`;
+      g.keys.forEach(k => {
+        const n = itemMap[k]; if(!n) return;
+        sidebarHtml += `<a class="nav-link ${n.key===activeKey?'active':''}" href="${n.href}"><i class="bi ${n.icon}"></i>${n.label}</a>`;
+      });
+    });
+    sidebarHtml += `</nav><div class="pt-2" style="border-top:1px solid var(--border);margin-top:8px">
+      <a class="nav-link" href="#" onclick="openQuickAdd('task');return false;"><i class="bi bi-plus-circle"></i>Add Task</a>
+      <a class="nav-link" href="#" onclick="Toast.confirmExport();return false;"><i class="bi bi-download"></i>Export</a>
+    </div>`;
+    sidebar.innerHTML = sidebarHtml;
   }
   // mobile bottom nav: 4 primary + "More" sheet covering every page (grades, attendance, notes, wallpaper, settings, etc.)
   const mnav = document.getElementById('mobileNav');
@@ -50,16 +64,35 @@ function renderShell(activeKey){
 /* ---------- MOBILE "MORE" MENU (full site map) ---------- */
 function ensureMoreMenu(activeKey){
   if(document.getElementById('moreMenuModal')) { document.getElementById('moreMenuModal').remove(); }
+  const groups = [
+    { label: 'Main',       keys: ['dashboard','schedule','tasks','calendar'] },
+    { label: 'Academics',  keys: ['grades','attendance','syllabus','notes'] },
+    { label: 'University', keys: ['university','curriculum'] },
+    { label: 'More',       keys: ['wallpaper','settings'] },
+  ];
+  const itemMap = Object.fromEntries(NAV_ITEMS.map(n => [n.key, n]));
+
   const wrap = document.createElement('div');
   wrap.innerHTML = `<div class="modal fade" id="moreMenuModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content card-pad">
-        <h5 class="mb-3"><i class="bi bi-grid-3x3-gap-fill me-2"></i>All Pages</h5>
-        <div class="row row-cols-3 g-2">
-          ${NAV_ITEMS.map(n=>`
-            <div class="col"><a href="${n.href}" class="quick-action" style="text-decoration:none;${n.key===activeKey?'border-color:rgba(var(--accent),.5);background:rgba(var(--accent),.12)':''}">
-              <i class="bi ${n.icon}"></i><span>${n.label}</span>
-            </a></div>`).join('')}
+      <div class="modal-content more-menu-content">
+        <div class="more-menu-header">
+          <span><i class="bi bi-grid-3x3-gap-fill me-2"></i>All Pages</span>
+          <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="more-menu-body">
+          ${groups.map(g => `
+            <div class="more-menu-group-label">${g.label}</div>
+            <div class="more-menu-grid">
+              ${g.keys.map(k => {
+                const n = itemMap[k]; if(!n) return '';
+                const isActive = n.key === activeKey;
+                return `<a href="${n.href}" class="more-menu-item${isActive?' more-menu-item-active':''}" style="text-decoration:none">
+                  <i class="bi ${n.icon}"></i>
+                  <span>${n.label}</span>
+                </a>`;
+              }).join('')}
+            </div>`).join('')}
         </div>
       </div>
     </div>

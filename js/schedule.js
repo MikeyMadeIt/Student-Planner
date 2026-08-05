@@ -73,31 +73,31 @@ function renderAllViews(){
 function renderCardView(){
   const wrap = document.getElementById('cardView');
   const list = getFilteredSubjects();
-  if(!list.length){ wrap.innerHTML = `<div class="col-12"><div class="glass card-pad text-center py-5"><i class="bi bi-journal-x" style="font-size:1.8rem;color:var(--text-faint)"></i><p class="text-soft mt-2 mb-0">No subjects found. Try adjusting filters or add a new subject.</p></div></div>`; return; }
+  if(!list.length){ wrap.innerHTML = `<div class="col-12"><div class="glass card-pad text-center py-4"><i class="bi bi-journal-x" style="font-size:1.6rem;color:var(--text-faint)"></i><p class="text-soft mt-2 mb-0" style="font-size:.85rem">No subjects found.</p></div></div>`; return; }
   wrap.innerHTML = list.map(s=>{
     const remain = nextOccurrenceMinutes(s);
     return `<div class="col-md-6 col-xl-4">
-      <div class="glass subject-card hover-lift h-100" style="--sc-color:${s.color}">
-        <div class="d-flex justify-content-between align-items-start mb-1">
-          <div>
-            <div class="fw-bold">${s.code} ${s.archived?'<span class=\"chip\">archived</span>':''}</div>
-            <div class="text-soft" style="font-size:.82rem">${escapeHtml(s.desc)}</div>
-          </div>
-          <div class="d-flex gap-1">
-            <button class="btn-icon" style="width:30px;height:30px" onclick="openSubjectModal('${s.id}')"><i class="bi bi-pencil" style="font-size:.8rem"></i></button>
-            <button class="btn-icon" style="width:30px;height:30px" onclick="deleteSubject('${s.id}')"><i class="bi bi-trash" style="font-size:.8rem"></i></button>
+      <div class="glass subject-card hover-lift" style="--sc-color:${s.color}">
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="sched-dot" style="background:${s.color}"></span>
+          <span class="fw-bold" style="font-size:.88rem">${s.code}</span>
+          ${s.archived?'<span class="chip" style="font-size:.6rem">archived</span>':''}
+          <div class="d-flex gap-1 ms-auto">
+            <button class="btn-icon sched-icon-btn" onclick="openSubjectModal('${s.id}')"><i class="bi bi-pencil"></i></button>
+            <button class="btn-icon sched-icon-btn" onclick="deleteSubject('${s.id}')"><i class="bi bi-trash"></i></button>
           </div>
         </div>
-        <div class="text-faint" style="font-size:.76rem" class="mb-2">
-          <div><i class="bi bi-clock me-1"></i>${s.days.join(', ')} · ${fmtTime(s.start)}–${fmtTime(s.end)}</div>
-          <div><i class="bi bi-geo-alt me-1"></i>${s.room}, ${s.building}</div>
-          <div><i class="bi bi-person me-1"></i>${s.professor}</div>
+        <div class="sched-desc">${escapeHtml(s.desc)}</div>
+        <div class="sched-meta">
+          <span><i class="bi bi-clock"></i>${s.days.join(', ')} · ${fmtTime(s.start)}–${fmtTime(s.end)}</span>
+          <span><i class="bi bi-geo-alt"></i>${s.room}${s.building?' · '+s.building:''}</span>
+          <span><i class="bi bi-person"></i>${s.professor}</span>
         </div>
-        <div class="d-flex justify-content-between align-items-center mt-2">
-          <span class="chip">${remain}</span>
+        <div class="d-flex justify-content-between align-items-center mt-2 pt-2" style="border-top:1px solid var(--border)">
+          <span class="chip" style="font-size:.68rem">${remain}</span>
           <div class="d-flex gap-1">
-            <button class="btn-ghost btn btn-sm" onclick="duplicateSubject('${s.id}')" title="Duplicate"><i class="bi bi-copy"></i></button>
-            <button class="btn-ghost btn btn-sm" onclick="archiveSubject('${s.id}')" title="Archive"><i class="bi bi-archive"></i></button>
+            <button class="btn-ghost btn btn-sm sched-action-btn" onclick="duplicateSubject('${s.id}')" title="Duplicate"><i class="bi bi-copy"></i></button>
+            <button class="btn-ghost btn btn-sm sched-action-btn" onclick="archiveSubject('${s.id}')" title="Archive"><i class="bi bi-archive"></i></button>
           </div>
         </div>
       </div>
@@ -194,16 +194,22 @@ function showSubjectDetail(id){
   const s = DB.getSubject(id); if(!s) return;
   const body = document.getElementById('detailModalBody');
   body.innerHTML = `
-    <div class="d-flex align-items-center gap-2 mb-2"><span class="subject-badge" style="--sc-color:${s.color};background:${s.color}"></span><h5 class="mb-0">${s.code}</h5></div>
-    <p class="text-soft mb-2">${escapeHtml(s.desc)}</p>
-    <div class="text-faint" style="font-size:.85rem;line-height:1.9">
-      <div><i class="bi bi-clock me-2"></i>${s.days.join(', ')} · ${fmtTime(s.start)}–${fmtTime(s.end)}</div>
-      <div><i class="bi bi-geo-alt me-2"></i>${s.room}, ${s.building}</div>
-      <div><i class="bi bi-person me-2"></i>${s.professor} ${s.email?'· '+s.email:''}</div>
-      <div><i class="bi bi-mortarboard me-2"></i>${s.units} units · ${s.type} · ${s.section}</div>
-      ${s.notes?`<div><i class="bi bi-sticky me-2"></i>${escapeHtml(s.notes)}</div>`:''}
+    <div class="modal-header" style="border:none;padding-bottom:8px">
+      <div class="d-flex align-items-center gap-2">
+        <span class="subject-badge" style="--sc-color:${s.color};background:${s.color}"></span>
+        <h5 class="modal-title mb-0">${s.code}</h5>
+      </div>
+      <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
     </div>
-    <button class="btn btn-accent w-100 mt-3" onclick="bootstrap.Modal.getInstance(document.getElementById('detailModal')).hide(); openSubjectModal('${s.id}')">Edit Subject</button>`;
+    <p class="text-soft mb-3" style="font-size:.88rem">${escapeHtml(s.desc)}</p>
+    <div class="d-flex flex-column gap-2 mb-3" style="font-size:.83rem">
+      <div class="d-flex align-items-center gap-2"><i class="bi bi-clock text-faint"></i><span>${s.days.join(', ')} · ${fmtTime(s.start)}–${fmtTime(s.end)}</span></div>
+      <div class="d-flex align-items-center gap-2"><i class="bi bi-geo-alt text-faint"></i><span>${s.room}, ${s.building}</span></div>
+      <div class="d-flex align-items-center gap-2"><i class="bi bi-person text-faint"></i><span>${s.professor} ${s.email?'· '+s.email:''}</span></div>
+      <div class="d-flex align-items-center gap-2"><i class="bi bi-mortarboard text-faint"></i><span>${s.units} units · ${s.type} · ${s.section}</span></div>
+      ${s.notes?`<div class="d-flex align-items-center gap-2"><i class="bi bi-sticky text-faint"></i><span>${escapeHtml(s.notes)}</span></div>`:''}
+    </div>
+    <button class="btn btn-accent w-100" onclick="bootstrap.Modal.getInstance(document.getElementById('detailModal')).hide(); openSubjectModal('${s.id}')"><i class="bi bi-pencil me-1"></i>Edit Subject</button>`;
   new bootstrap.Modal(document.getElementById('detailModal')).show();
 }
 

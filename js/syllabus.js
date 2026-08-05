@@ -91,7 +91,10 @@ function openCourseModal(id){
   const c = id ? DB.getSyllabusCourse(id) : null;
   const body = document.getElementById('courseModalBody');
   body.innerHTML = `
-    <h5 class="mb-3"><i class="bi bi-journal-bookmark-fill me-2"></i>${c?'Edit':'Add'} Subject</h5>
+    <div class="modal-header" style="border:none;padding:0 0 12px 0">
+      <h5 class="modal-title"><i class="bi bi-journal-bookmark-fill me-2"></i>${c?'Edit':'Add'} Subject</h5>
+      <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+    </div>
     <input type="hidden" id="cId" value="${c?c.id:''}">
     <div class="row g-2">
       <div class="col-md-8"><label>Course Title *</label><input class="form-control" id="cTitle" placeholder="Data Structures" value="${c?escapeHtml(c.courseTitle):''}"></div>
@@ -473,7 +476,10 @@ function showSyllabusImportPreview(data){
   const existing = DB.getSyllabusCourses().find(c=> c.courseCode.trim().toLowerCase()===data.courseCode.trim().toLowerCase());
   const body = document.getElementById('syllabusImportModalBody');
   body.innerHTML = `
-    <h5 class="mb-3"><i class="bi bi-upload me-2"></i>Import Syllabus</h5>
+    <div class="modal-header" style="border:none;padding:0 0 12px 0">
+      <h5 class="modal-title"><i class="bi bi-upload me-2"></i>Import Syllabus</h5>
+      <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+    </div>
     <div class="list-row"><i class="bi bi-journal-bookmark text-soft"></i><div class="flex-grow-1"><b>${escapeHtml(data.courseTitle)}</b><div class="text-faint" style="font-size:.76rem">Course Title</div></div></div>
     <div class="list-row"><i class="bi bi-hash text-soft"></i><div class="flex-grow-1">${escapeHtml(data.courseCode)}<div class="text-faint" style="font-size:.76rem">Course Code</div></div></div>
     <div class="list-row"><i class="bi bi-calendar3-week text-soft"></i><div class="flex-grow-1">${data.weeks.length} weeks<div class="text-faint" style="font-size:.76rem">Weeks Included</div></div></div>
